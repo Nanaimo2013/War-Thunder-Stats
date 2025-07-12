@@ -23,8 +23,9 @@ const StatsPage = ({ users, selectedUserId, setSelectedUserId, stats, battles })
         const winRateTrend = battles.length >= 10 ? 
             (recentStats.wins / recentBattles.length) - (stats.wins / stats.totalBattles) : 0;
 
-        // Calculate performance metrics
-        const kdr = (stats.totalKillsAircraft + stats.totalKillsGround) / Math.max(stats.totalBattles, 1);
+        // Calculate performance metrics - use damaged vehicles count instead of deaths
+        const totalDamagedVehicles = battles.reduce((total, battle) => total + (battle.damagedVehicles?.length || 0), 0);
+        const kdr = (stats.totalKillsAircraft + stats.totalKillsGround) / Math.max(totalDamagedVehicles, 1);
         const avgSLPerBattle = stats.totalEarnedSL / Math.max(stats.totalBattles, 1);
         const avgRPPerBattle = stats.overallTotalRP / Math.max(stats.totalBattles, 1);
 
@@ -78,6 +79,7 @@ const StatsPage = ({ users, selectedUserId, setSelectedUserId, stats, battles })
             kdr,
             avgSLPerBattle,
             avgRPPerBattle,
+            totalDamagedVehicles,
             mapStats,
             modeStats,
             timeStats,
@@ -354,6 +356,7 @@ const StatsPage = ({ users, selectedUserId, setSelectedUserId, stats, battles })
                                     <p>Defeats: <span className="font-medium text-gray-200">{enhancedStats.defeats}</span></p>
                                     <p>Total Kills: <span className="font-medium text-gray-200">{(enhancedStats.totalKillsAircraft || 0) + (enhancedStats.totalKillsGround || 0)}</span></p>
                                     <p>Total Assists: <span className="font-medium text-gray-200">{enhancedStats.totalAssists}</span></p>
+                                    <p>Deaths (Damaged Vehicles): <span className="font-medium text-gray-200">{enhancedStats.totalDamagedVehicles || 0}</span></p>
                                     <p>Avg. Activity: <span className="font-medium text-gray-200">{enhancedStats.averageActivity?.toFixed(2) || '0.00'}%</span></p>
                                 </div>
                                 
@@ -505,6 +508,10 @@ const StatsPage = ({ users, selectedUserId, setSelectedUserId, stats, battles })
                                         <div>
                                             <p className="text-gray-400">Total Damage:</p>
                                             <p className="text-gray-200 font-semibold">{enhancedStats.totalDamage || 0}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-gray-400">Deaths (Damaged Vehicles):</p>
+                                            <p className="text-gray-200 font-semibold">{enhancedStats.totalDamagedVehicles || 0}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -1000,13 +1007,122 @@ const StatsPage = ({ users, selectedUserId, setSelectedUserId, stats, battles })
 
                     {statsTab === 'performance' && (
                         <>
-                            <h3 className="text-2xl font-bold text-yellow-400 mb-4 flex items-center space-x-2">
+                            <h3 className="text-2xl font-bold text-indigo-400 mb-4 flex items-center space-x-2">
                                 <TrendingUp size={24} /> <span>Performance Analytics</span>
                             </h3>
+                            
+                            {/* Performance KPIs - Same as Overview */}
+                            <div className="w-full overflow-x-auto mb-6">
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 min-w-[900px]">
+                                    {/* General/Performance */}
+                                    <div className="bg-gradient-to-br from-green-600 to-green-700 p-3 rounded-xl shadow-lg border border-green-500 flex flex-col items-center justify-center min-w-[140px]">
+                                        <div className="flex items-center space-x-2">
+                                            <TrendingUp size={20} className="text-green-200" />
+                                            <span className="text-green-100 text-xs">Win Rate</span>
+                                        </div>
+                                        <span className="text-white text-xl font-bold">{((enhancedStats.wins / Math.max(enhancedStats.totalBattles, 1)) * 100).toFixed(1)}%</span>
+                                    </div>
+                                    <div className="bg-gradient-to-br from-blue-600 to-blue-700 p-3 rounded-xl shadow-lg border border-blue-500 flex flex-col items-center justify-center min-w-[140px]">
+                                        <div className="flex items-center space-x-2">
+                                            <Target size={20} className="text-blue-200" />
+                                            <span className="text-blue-100 text-xs">K/D Ratio</span>
+                                        </div>
+                                        <span className="text-white text-xl font-bold">{enhancedStats.kdr?.toFixed(2) || '0.00'}</span>
+                                    </div>
+                                    {/* Combat */}
+                                    <div className="bg-gradient-to-br from-red-600 to-red-700 p-3 rounded-xl shadow-lg border border-red-500 flex flex-col items-center justify-center min-w-[140px]">
+                                        <div className="flex items-center space-x-2">
+                                            <PieChart size={20} className="text-red-200" />
+                                            <span className="text-red-100 text-xs">Total Kills</span>
+                                        </div>
+                                        <span className="text-white text-xl font-bold">{(enhancedStats.totalKillsAircraft || 0) + (enhancedStats.totalKillsGround || 0)}</span>
+                                    </div>
+                                    {/* Economy */}
+                                    <div className="bg-gradient-to-br from-yellow-600 to-yellow-700 p-3 rounded-xl shadow-lg border border-yellow-500 flex flex-col items-center justify-center min-w-[140px]">
+                                        <div className="flex items-center space-x-2">
+                                            <DollarSign size={20} className="text-yellow-200" />
+                                            <span className="text-yellow-100 text-xs">Total SL</span>
+                                        </div>
+                                        <span className="text-white text-xl font-bold">{(enhancedStats.totalEarnedSL || 0).toLocaleString()}</span>
+                                    </div>
+                                    {/* Research */}
+                                    <div className="bg-gradient-to-br from-purple-600 to-purple-700 p-3 rounded-xl shadow-lg border border-purple-500 flex flex-col items-center justify-center min-w-[140px]">
+                                        <div className="flex items-center space-x-2">
+                                            <Zap size={20} className="text-purple-200" />
+                                            <span className="text-purple-100 text-xs">Total RP</span>
+                                        </div>
+                                        <span className="text-white text-xl font-bold">{(enhancedStats.overallTotalRP || 0).toLocaleString()}</span>
+                                    </div>
+                                    {/* Vehicles */}
+                                    <div className="bg-gradient-to-br from-pink-600 to-pink-700 p-3 rounded-xl shadow-lg border border-pink-500 flex flex-col items-center justify-center min-w-[140px]">
+                                        <div className="flex items-center space-x-2">
+                                            <Users size={20} className="text-pink-200" />
+                                            <span className="text-pink-100 text-xs">Vehicles Used</span>
+                                        </div>
+                                        <span className="text-white text-xl font-bold">{Object.keys(enhancedStats.vehiclesUsed || {}).length}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Performance Charts with Line and Scatter Plots */}
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                                {/* Performance by Hour - Line Chart */}
                                 <div className="bg-gray-900 p-4 rounded-xl shadow-sm border border-gray-700">
-                                    <h4 className="font-semibold text-lg text-yellow-300 mb-2 flex items-center space-x-2">
-                                        <Clock size={20} /> <span>Performance by Hour</span>
+                                    <h4 className="font-semibold text-lg text-indigo-300 mb-2 flex items-center space-x-2">
+                                        <Clock size={20} /> <span>Win Rate by Hour</span>
+                                    </h4>
+                                    <ResponsiveContainer width="100%" height={300}>
+                                        <LineChart
+                                            data={timeData}
+                                            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                                        >
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#555" />
+                                            <XAxis dataKey="hour" stroke="#ccc" />
+                                            <YAxis stroke="#ccc" />
+                                            <Tooltip contentStyle={{ backgroundColor: '#333', border: 'none', color: '#fff' }} />
+                                            <Legend />
+                                            <Line 
+                                                type="monotone" 
+                                                dataKey="winRate" 
+                                                stroke="#4CAF50" 
+                                                strokeWidth={3}
+                                                dot={{ fill: '#4CAF50', strokeWidth: 2, r: 6 }}
+                                                activeDot={{ r: 8, stroke: '#4CAF50', strokeWidth: 2 }}
+                                                name="Win Rate %" 
+                                            />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
+
+                                {/* Battle Distribution by Hour - Scatter Plot */}
+                                <div className="bg-gray-900 p-4 rounded-xl shadow-sm border border-gray-700">
+                                    <h4 className="font-semibold text-lg text-indigo-300 mb-2 flex items-center space-x-2">
+                                        <BarChart2 size={20} /> <span>Battle Activity by Hour</span>
+                                    </h4>
+                                    <ResponsiveContainer width="100%" height={300}>
+                                        <ScatterChart
+                                            data={timeData}
+                                            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                                        >
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#555" />
+                                            <XAxis dataKey="hour" stroke="#ccc" />
+                                            <YAxis stroke="#ccc" />
+                                            <Tooltip contentStyle={{ backgroundColor: '#333', border: 'none', color: '#fff' }} />
+                                            <Legend />
+                                            <Scatter 
+                                                dataKey="battles" 
+                                                fill="#8884d8" 
+                                                name="Battles"
+                                                shape="circle"
+                                            />
+                                        </ScatterChart>
+                                    </ResponsiveContainer>
+                                </div>
+
+                                {/* Performance Trends - Area Chart */}
+                                <div className="bg-gray-900 p-4 rounded-xl shadow-sm border border-gray-700">
+                                    <h4 className="font-semibold text-lg text-indigo-300 mb-2 flex items-center space-x-2">
+                                        <TrendingUp size={20} /> <span>Performance Trends</span>
                                     </h4>
                                     <ResponsiveContainer width="100%" height={300}>
                                         <AreaChart
@@ -1018,35 +1134,24 @@ const StatsPage = ({ users, selectedUserId, setSelectedUserId, stats, battles })
                                             <YAxis stroke="#ccc" />
                                             <Tooltip contentStyle={{ backgroundColor: '#333', border: 'none', color: '#fff' }} />
                                             <Legend />
-                                            <Area type="monotone" dataKey="winRate" stroke="#8884d8" fill="#8884d8" fillOpacity={0.3} name="Win Rate %" />
+                                            <Area 
+                                                type="monotone" 
+                                                dataKey="winRate" 
+                                                stroke="#8884d8" 
+                                                fill="#8884d8" 
+                                                fillOpacity={0.6} 
+                                                name="Win Rate %" 
+                                            />
                                         </AreaChart>
                                     </ResponsiveContainer>
                                 </div>
 
+                                {/* Performance Metrics Grid */}
                                 <div className="bg-gray-900 p-4 rounded-xl shadow-sm border border-gray-700">
-                                    <h4 className="font-semibold text-lg text-yellow-300 mb-2 flex items-center space-x-2">
-                                        <BarChart2 size={20} /> <span>Battle Distribution by Hour</span>
-                                    </h4>
-                                    <ResponsiveContainer width="100%" height={300}>
-                                        <BarChart
-                                            data={timeData}
-                                            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                                        >
-                                            <CartesianGrid strokeDasharray="3 3" stroke="#555" />
-                                            <XAxis dataKey="hour" stroke="#ccc" />
-                                            <YAxis stroke="#ccc" />
-                                            <Tooltip contentStyle={{ backgroundColor: '#333', border: 'none', color: '#fff' }} />
-                                            <Legend />
-                                            <Bar dataKey="battles" fill="#82ca9d" name="Battles" />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
-
-                                <div className="bg-gray-900 p-4 rounded-xl shadow-sm border border-gray-700 col-span-full">
-                                    <h4 className="font-semibold text-lg text-yellow-300 mb-2 flex items-center space-x-2">
+                                    <h4 className="font-semibold text-lg text-indigo-300 mb-2 flex items-center space-x-2">
                                         <TrendingUp size={20} /> <span>Performance Metrics</span>
                                     </h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    <div className="grid grid-cols-2 gap-4">
                                         <div className="bg-gray-800 p-4 rounded-lg border border-gray-600">
                                             <p className="text-gray-400 text-sm">K/D Ratio</p>
                                             <p className="text-2xl font-bold text-blue-400">{enhancedStats.kdr?.toFixed(2) || '0.00'}</p>
@@ -1069,8 +1174,44 @@ const StatsPage = ({ users, selectedUserId, setSelectedUserId, stats, battles })
                                                 {enhancedStats.totalBattles}
                                             </p>
                                         </div>
+                                        <div className="bg-gray-800 p-4 rounded-lg border border-gray-600">
+                                            <p className="text-gray-400 text-sm">Avg SL/Battle</p>
+                                            <p className="text-2xl font-bold text-yellow-400">
+                                                {(enhancedStats.avgSLPerBattle || 0).toLocaleString()}
+                                            </p>
+                                        </div>
+                                        <div className="bg-gray-800 p-4 rounded-lg border border-gray-600">
+                                            <p className="text-gray-400 text-sm">Avg RP/Battle</p>
+                                            <p className="text-2xl font-bold text-purple-400">
+                                                {(enhancedStats.avgRPPerBattle || 0).toLocaleString()}
+                                            </p>
+                                        </div>
+                                        <div className="bg-gray-800 p-4 rounded-lg border border-gray-600">
+                                            <p className="text-gray-400 text-sm">Deaths (Damaged Vehicles)</p>
+                                            <p className="text-2xl font-bold text-red-400">
+                                                {enhancedStats.totalDamagedVehicles || 0}
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
+                            </div>
+
+                            {/* Performance Overview - Composed Chart */}
+                            <div className="bg-gray-900 p-4 rounded-xl shadow-sm border border-gray-700 mb-6">
+                                <h4 className="font-semibold text-lg text-indigo-300 mb-4 flex items-center space-x-2">
+                                    <TrendingUp size={20} /> <span>Performance Overview</span>
+                                </h4>
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <ComposedChart data={performanceData}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#555" />
+                                        <XAxis dataKey="name" stroke="#ccc" />
+                                        <YAxis stroke="#ccc" />
+                                        <Tooltip contentStyle={{ backgroundColor: '#333', border: 'none', color: '#fff' }} />
+                                        <Legend />
+                                        <Bar dataKey="value" fill="#8884d8" name="Value" />
+                                        <Line type="monotone" dataKey="value" stroke="#ff7300" strokeWidth={2} name="Trend" />
+                                    </ComposedChart>
+                                </ResponsiveContainer>
                             </div>
                         </>
                     )}
