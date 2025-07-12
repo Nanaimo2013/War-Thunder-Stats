@@ -1,7 +1,27 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Users, Trophy, BarChart2, DollarSign, FlaskConical } from 'lucide-react';
 
-const HomePage = ({ users }) => {
+const HomePage = () => {
+    const [usersWithBattles, setUsersWithBattles] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchUsersWithBattles = async () => {
+            try {
+                const res = await fetch('http://localhost:4000/api/users-with-battles');
+                const data = await res.json();
+                if (data.success) {
+                    setUsersWithBattles(data.users);
+                }
+            } catch (err) {
+                console.error('Failed to fetch users with battles:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchUsersWithBattles();
+    }, []);
     const overallStats = useMemo(() => {
         let totalBattles = 0;
         let totalKillsGround = 0;
@@ -9,25 +29,39 @@ const HomePage = ({ users }) => {
         let totalEarnedSL = 0;
         let totalEarnedRP = 0;
 
-        users.forEach(user => {
-            user.battles.forEach(battle => {
-                totalBattles++;
-                totalKillsGround += battle.killsGround || 0;
-                totalKillsAircraft += battle.killsAircraft || 0;
-                totalEarnedSL += battle.earnedSL || 0;
-                totalEarnedRP += battle.totalRP || 0;
+        // Add null checks to prevent errors
+        if (usersWithBattles && Array.isArray(usersWithBattles)) {
+            usersWithBattles.forEach(user => {
+                if (user.battles && Array.isArray(user.battles)) {
+                    user.battles.forEach(battle => {
+                        totalBattles++;
+                        totalKillsGround += battle.killsGround || 0;
+                        totalKillsAircraft += battle.killsAircraft || 0;
+                        totalEarnedSL += battle.earnedSL || 0;
+                        totalEarnedRP += battle.totalRP || 0;
+                    });
+                }
             });
-        });
+        }
 
         return {
-            totalUsers: users.length,
+            totalUsers: usersWithBattles ? usersWithBattles.length : 0,
             totalBattles,
             totalKillsGround,
             totalKillsAircraft,
             totalEarnedSL,
             totalEarnedRP
         };
-    }, [users]);
+    }, [usersWithBattles]);
+
+    if (loading) {
+        return (
+            <div className="flex flex-col items-center justify-center p-8 text-center bg-gray-800 rounded-xl shadow-xl m-4 border-2 border-gray-700 animate-fade-in">
+                <div className="text-yellow-400 text-2xl font-bold mb-4">Loading...</div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col items-center justify-center p-8 text-center bg-gray-800 rounded-xl shadow-xl m-4 border-2 border-gray-700 animate-fade-in">

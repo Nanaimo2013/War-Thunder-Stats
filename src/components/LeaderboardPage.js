@@ -111,7 +111,7 @@ const LeaderboardPage = ({ users }) => {
                                 return (
                                     <tr key={user.id} className="border-b border-gray-700 hover:bg-gray-800 transition duration-200 ease-in-out">
                                         <td className="py-3 px-6 text-left whitespace-nowrap">{index + 1}</td>
-                                        <td className="py-3 px-6 text-left">{user.name}</td>
+                                        <td className="py-3 px-6 text-left">{user.username}</td>
                                         <td className="py-3 px-6 text-left">{userStats.totalKillsGround}</td>
                                         <td className="py-3 px-6 text-left">{userStats.totalKillsAircraft}</td>
                                         <td className="py-3 px-6 text-left">{userStats.totalEarnedSL}</td>

@@ -177,7 +177,7 @@ const StatsPage = ({ users, selectedUserId, setSelectedUserId, stats, battles })
                 >
                     <option value="">-- Select a user --</option>
                     {users.map(user => (
-                        <option key={user.id} value={user.id}>{user.name}</option>
+                        <option key={user.id} value={user.id}>{user.username}</option>
                     ))}
                 </select>
             </div>
@@ -185,7 +185,7 @@ const StatsPage = ({ users, selectedUserId, setSelectedUserId, stats, battles })
             {currentUser && (
                 <div className="mb-6 bg-gray-900 p-6 rounded-xl shadow-inner border border-gray-700">
                     <h3 className="text-2xl font-bold text-yellow-300 mb-4 flex items-center space-x-2">
-                        <Users size={24} /> <span>Player Profile: {currentUser.name}</span>
+                        <Users size={24} /> <span>Player Profile: {currentUser.username}</span>
                     </h3>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -889,8 +889,8 @@ const StatsPage = ({ users, selectedUserId, setSelectedUserId, stats, battles })
                                     </ResponsiveContainer>
                                 </div>
                                 {/* Mode Win Rates */}
-                                <div className="bg-gray-900 p-4 rounded-xl shadow-sm border border-gray-700">
-                                    <h4 className="font-semibold text-lg text-yellow-300 mb-2 flex items-center space-x-2">
+                                    <div className="bg-gray-900 p-4 rounded-xl shadow-sm border border-gray-700">
+                                        <h4 className="font-semibold text-lg text-yellow-300 mb-2 flex items-center space-x-2">
                                         <Award size={20} /> <span>Mode Win Rates</span>
                                     </h4>
                                     <ResponsiveContainer width="100%" height={300}>
@@ -907,36 +907,36 @@ const StatsPage = ({ users, selectedUserId, setSelectedUserId, stats, battles })
                                 {/* Mission Types Pie Chart */}
                                 <div className="bg-gray-900 p-4 rounded-xl shadow-sm border border-gray-700">
                                     <h4 className="font-semibold text-lg text-pink-300 mb-2 flex items-center space-x-2">
-                                        <Map size={20} /> <span>Mission Types Played</span>
-                                    </h4>
-                                    <ResponsiveContainer width="100%" height={300}>
-                                        <PieChart>
+                                            <Map size={20} /> <span>Mission Types Played</span>
+                                        </h4>
+                                        <ResponsiveContainer width="100%" height={300}>
+                                            <PieChart>
                                             <Pie data={missionTypeData} cx="50%" cy="50%" labelLine={false} outerRadius={100} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                                                {missionTypeData.map((entry, index) => (
-                                                    <Cell key={`cell-${index}`} fill={`hsl(${index * 60}, 70%, 50%)`} />
-                                                ))}
-                                            </Pie>
-                                            <Tooltip contentStyle={{ backgroundColor: '#333', border: 'none', color: '#fff' }} />
-                                            <Legend />
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                </div>
+                                                    {missionTypeData.map((entry, index) => (
+                                                        <Cell key={`cell-${index}`} fill={`hsl(${index * 60}, 70%, 50%)`} />
+                                                    ))}
+                                                </Pie>
+                                                <Tooltip contentStyle={{ backgroundColor: '#333', border: 'none', color: '#fff' }} />
+                                                <Legend />
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                    </div>
                                 {/* Mission Names Bar Chart */}
-                                <div className="bg-gray-900 p-4 rounded-xl shadow-sm border border-gray-700">
+                                    <div className="bg-gray-900 p-4 rounded-xl shadow-sm border border-gray-700">
                                     <h4 className="font-semibold text-lg text-pink-300 mb-2 flex items-center space-x-2">
-                                        <Map size={20} /> <span>Specific Missions Played</span>
-                                    </h4>
-                                    <ResponsiveContainer width="100%" height={300}>
+                                            <Map size={20} /> <span>Specific Missions Played</span>
+                                        </h4>
+                                        <ResponsiveContainer width="100%" height={300}>
                                         <BarChart data={missionNameData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="#555" />
-                                            <XAxis dataKey="name" stroke="#ccc" angle={-45} textAnchor="end" height={80} />
-                                            <YAxis stroke="#ccc" />
-                                            <Tooltip contentStyle={{ backgroundColor: '#333', border: 'none', color: '#fff' }} />
-                                            <Legend />
-                                            <Bar dataKey="value" fill="#ff7300" name="Count" />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="#555" />
+                                                <XAxis dataKey="name" stroke="#ccc" angle={-45} textAnchor="end" height={80} />
+                                                <YAxis stroke="#ccc" />
+                                                <Tooltip contentStyle={{ backgroundColor: '#333', border: 'none', color: '#fff' }} />
+                                                <Legend />
+                                                <Bar dataKey="value" fill="#ff7300" name="Count" />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
                                 {/* Map Table */}
                                 <div className="bg-gray-900 p-4 rounded-xl shadow-sm border border-gray-700 col-span-full">
                                     <h4 className="font-semibold text-lg text-blue-300 mb-2 flex items-center space-x-2">

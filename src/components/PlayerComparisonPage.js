@@ -42,7 +42,7 @@ const PlayerComparisonPage = ({ users }) => {
                     >
                         <option value="">-- Select Player 1 --</option>
                         {users.map(user => (
-                            <option key={user.id} value={user.id}>{user.name}</option>
+                            <option key={user.id} value={user.id}>{user.username}</option>
                         ))}
                     </select>
                 </div>
@@ -58,7 +58,7 @@ const PlayerComparisonPage = ({ users }) => {
                     >
                         <option value="">-- Select Player 2 --</option>
                         {users.map(user => (
-                            <option key={user.id} value={user.id}>{user.name}</option>
+                            <option key={user.id} value={user.id}>{user.username}</option>
                         ))}
                     </select>
                 </div>

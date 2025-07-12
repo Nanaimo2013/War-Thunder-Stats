@@ -1,5 +1,48 @@
 // Function to calculate aggregated stats
 export const calculateStats = (battles) => {
+    // Handle null/undefined battles
+    if (!battles || !Array.isArray(battles)) {
+        return {
+            totalBattles: 0,
+            totalKillsAircraft: 0,
+            totalKillsGround: 0,
+            totalAssists: 0,
+            totalSevereDamage: 0,
+            totalCriticalDamage: 0,
+            totalDamage: 0,
+            totalAwardsSL: 0,
+            totalAwardsRP: 0,
+            totalActivityTimeSL: 0,
+            totalActivityTimeRP: 0,
+            totalTimePlayedRP: 0,
+            totalRewardSL: 0,
+            totalSkillBonusRP: 0,
+            totalEarnedSL: 0,
+            totalEarnedCRP: 0,
+            totalActivity: 0,
+            totalAutoRepairCost: 0,
+            totalAutoAmmoCrewCost: 0,
+            totalResearchedRP: 0,
+            totalResearchingProgressRP: 0,
+            overallTotalSL: 0,
+            overallTotalCRP: 0,
+            overallTotalRP: 0,
+            wins: 0,
+            defeats: 0,
+            vehiclesUsed: {},
+            topVehiclesKills: [],
+            topVehiclesDamage: [],
+            topAwards: {},
+            averageActivity: 0,
+            averageEarnedSL: 0,
+            averageEarnedCRP: 0,
+            averageTotalRP: 0,
+            missionTypes: {},
+            results: { Victory: 0, Defeat: 0, Unknown: 0 },
+            missionNames: {}
+        };
+    }
+
     const aggregated = {
         totalBattles: battles.length,
         totalKillsAircraft: 0,
@@ -76,49 +119,73 @@ export const calculateStats = (battles) => {
         aggregated.overallTotalRP += battle.totalRP || 0;
 
         // Research points
-        battle.researchedUnits.forEach(unit => aggregated.totalResearchedRP += unit.rp);
-        battle.researchingProgress.forEach(progress => aggregated.totalResearchingProgressRP += progress.rp);
+        if (battle.researchedUnits && Array.isArray(battle.researchedUnits)) {
+            battle.researchedUnits.forEach(unit => aggregated.totalResearchedRP += unit.rp);
+        }
+        if (battle.researchingProgress && Array.isArray(battle.researchingProgress)) {
+            battle.researchingProgress.forEach(progress => aggregated.totalResearchingProgressRP += progress.rp);
+        }
 
         // Vehicle usage and kills/damage
-        battle.detailedKills.forEach(kill => {
-            vehicleKills[kill.vehicle] = (vehicleKills[kill.vehicle] || 0) + 1;
-            aggregated.vehiclesUsed[kill.vehicle] = (aggregated.vehiclesUsed[kill.vehicle] || 0) + 1;
-        });
-        battle.detailedDamage.forEach(dmg => {
-            vehicleDamage[dmg.vehicle] = (vehicleDamage[dmg.vehicle] || 0) + 1;
-            aggregated.vehiclesUsed[dmg.vehicle] = (aggregated.vehiclesUsed[dmg.vehicle] || 0) + 1;
-        });
-        battle.detailedSevereDamage.forEach(dmg => {
-            vehicleDamage[dmg.vehicle] = (vehicleDamage[dmg.vehicle] || 0) + 1;
-            aggregated.vehiclesUsed[dmg.vehicle] = (aggregated.vehiclesUsed[dmg.vehicle] || 0) + 1;
-        });
-        battle.detailedCriticalDamage.forEach(dmg => {
-            vehicleDamage[dmg.vehicle] = (vehicleDamage[dmg.vehicle] || 0) + 1;
-            aggregated.vehiclesUsed[dmg.vehicle] = (aggregated.vehiclesUsed[dmg.vehicle] || 0) + 1;
-        });
-        battle.detailedAssists.forEach(assist => {
-            aggregated.vehiclesUsed[assist.vehicle] = (aggregated.vehiclesUsed[assist.vehicle] || 0) + 1;
-        });
-        battle.detailedActivityTime.forEach(activity => {
-            aggregated.vehiclesUsed[activity.vehicle] = (aggregated.vehiclesUsed[activity.vehicle] || 0) + 1;
-        });
-        battle.detailedTimePlayed.forEach(played => {
-            aggregated.vehiclesUsed[played.vehicle] = (aggregated.vehiclesUsed[played.vehicle] || 0) + 1;
-            // Convert "MM:SS" to seconds for total time played calculation
-            const [minutes, seconds] = played.time.split(':').map(Number);
-            vehicleTimePlayed[played.vehicle] = (vehicleTimePlayed[played.vehicle] || 0) + (minutes * 60 + seconds);
-        });
-        battle.detailedSkillBonus.forEach(skill => {
-            aggregated.vehiclesUsed[skill.vehicle] = (aggregated.vehiclesUsed[skill.vehicle] || 0) + 1;
-        });
-        battle.damagedVehicles.forEach(vehicle => {
-            aggregated.vehiclesUsed[vehicle] = (aggregated.vehiclesUsed[vehicle] || 0) + 1;
-        });
+        if (battle.detailedKills && Array.isArray(battle.detailedKills)) {
+            battle.detailedKills.forEach(kill => {
+                vehicleKills[kill.vehicle] = (vehicleKills[kill.vehicle] || 0) + 1;
+                aggregated.vehiclesUsed[kill.vehicle] = (aggregated.vehiclesUsed[kill.vehicle] || 0) + 1;
+            });
+        }
+        if (battle.detailedDamage && Array.isArray(battle.detailedDamage)) {
+            battle.detailedDamage.forEach(dmg => {
+                vehicleDamage[dmg.vehicle] = (vehicleDamage[dmg.vehicle] || 0) + 1;
+                aggregated.vehiclesUsed[dmg.vehicle] = (aggregated.vehiclesUsed[dmg.vehicle] || 0) + 1;
+            });
+        }
+        if (battle.detailedSevereDamage && Array.isArray(battle.detailedSevereDamage)) {
+            battle.detailedSevereDamage.forEach(dmg => {
+                vehicleDamage[dmg.vehicle] = (vehicleDamage[dmg.vehicle] || 0) + 1;
+                aggregated.vehiclesUsed[dmg.vehicle] = (aggregated.vehiclesUsed[dmg.vehicle] || 0) + 1;
+            });
+        }
+        if (battle.detailedCriticalDamage && Array.isArray(battle.detailedCriticalDamage)) {
+            battle.detailedCriticalDamage.forEach(dmg => {
+                vehicleDamage[dmg.vehicle] = (vehicleDamage[dmg.vehicle] || 0) + 1;
+                aggregated.vehiclesUsed[dmg.vehicle] = (aggregated.vehiclesUsed[dmg.vehicle] || 0) + 1;
+            });
+        }
+        if (battle.detailedAssists && Array.isArray(battle.detailedAssists)) {
+            battle.detailedAssists.forEach(assist => {
+                aggregated.vehiclesUsed[assist.vehicle] = (aggregated.vehiclesUsed[assist.vehicle] || 0) + 1;
+            });
+        }
+        if (battle.detailedActivityTime && Array.isArray(battle.detailedActivityTime)) {
+            battle.detailedActivityTime.forEach(activity => {
+                aggregated.vehiclesUsed[activity.vehicle] = (aggregated.vehiclesUsed[activity.vehicle] || 0) + 1;
+            });
+        }
+        if (battle.detailedTimePlayed && Array.isArray(battle.detailedTimePlayed)) {
+            battle.detailedTimePlayed.forEach(played => {
+                aggregated.vehiclesUsed[played.vehicle] = (aggregated.vehiclesUsed[played.vehicle] || 0) + 1;
+                // Convert "MM:SS" to seconds for total time played calculation
+                const [minutes, seconds] = played.time.split(':').map(Number);
+                vehicleTimePlayed[played.vehicle] = (vehicleTimePlayed[played.vehicle] || 0) + (minutes * 60 + seconds);
+            });
+        }
+        if (battle.detailedSkillBonus && Array.isArray(battle.detailedSkillBonus)) {
+            battle.detailedSkillBonus.forEach(skill => {
+                aggregated.vehiclesUsed[skill.vehicle] = (aggregated.vehiclesUsed[skill.vehicle] || 0) + 1;
+            });
+        }
+        if (battle.damagedVehicles && Array.isArray(battle.damagedVehicles)) {
+            battle.damagedVehicles.forEach(vehicle => {
+                aggregated.vehiclesUsed[vehicle] = (aggregated.vehiclesUsed[vehicle] || 0) + 1;
+            });
+        }
 
         // Awards
-        battle.detailedAwards.forEach(award => {
-            awardCounts[award.award] = (awardCounts[award.award] || 0) + 1;
-        });
+        if (battle.detailedAwards && Array.isArray(battle.detailedAwards)) {
+            battle.detailedAwards.forEach(award => {
+                awardCounts[award.award] = (awardCounts[award.award] || 0) + 1;
+            });
+        }
     });
 
     // Calculate averages

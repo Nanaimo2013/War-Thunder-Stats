@@ -21,6 +21,43 @@ app.get('/api/users', (req, res) => {
     res.json({ success: true, users });
   });
 });
+
+// Get users with battles data for homepage
+app.get('/api/users-with-battles', (req, res) => {
+  models.getAllUsers((err, users) => {
+    if (err) return res.status(500).json({ success: false, message: 'DB error.' });
+    
+    // For each user, get their battles
+    let completed = 0;
+    const usersWithBattles = [];
+    
+    if (users.length === 0) {
+      return res.json({ success: true, users: [] });
+    }
+    
+    users.forEach(user => {
+      models.getBattlesForUser(user.id, (err, battles) => {
+        if (err) {
+          completed++;
+          if (completed === users.length) {
+            res.status(500).json({ success: false, message: 'Failed to get battles for some users.' });
+          }
+          return;
+        }
+        
+        usersWithBattles.push({
+          ...user,
+          battles: battles || []
+        });
+        
+        completed++;
+        if (completed === users.length) {
+          res.json({ success: true, users: usersWithBattles });
+        }
+      });
+    });
+  });
+});
 app.post('/api/users', (req, res) => {
   const { username } = req.body;
   if (!username) return res.status(400).json({ success: false, message: 'Username required.' });
@@ -212,6 +249,198 @@ app.get('/api/discord/:discordId', (req, res) => {
       if (err) return res.status(500).json({ success: false, message: 'DB error.' });
       const stats = calculateStats(battles);
       res.json({ success: true, stats });
+    });
+  });
+});
+
+// --- BACKUP AND RESTORE ---
+// Export all data (users and their battles)
+app.get('/api/backup', (req, res) => {
+  models.getAllUsers((err, users) => {
+    if (err) return res.status(500).json({ success: false, message: 'DB error.' });
+    
+    // For each user, get their battles
+    let completed = 0;
+    const usersWithBattles = [];
+    
+    if (users.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+    
+    users.forEach(user => {
+      models.getBattlesForUser(user.id, (err, battles) => {
+        if (err) {
+          completed++;
+          if (completed === users.length) {
+            res.status(500).json({ success: false, message: 'Failed to get battles for some users.' });
+          }
+          return;
+        }
+        
+        usersWithBattles.push({
+          ...user,
+          battles: battles || []
+        });
+        
+        completed++;
+        if (completed === users.length) {
+          res.json({ success: true, data: usersWithBattles });
+        }
+      });
+    });
+  });
+});
+
+// Import/restore data
+app.post('/api/restore', (req, res) => {
+  const { data } = req.body;
+  
+  if (!Array.isArray(data)) {
+    return res.status(400).json({ success: false, message: 'Invalid backup format. Expected array of users.' });
+  }
+  
+  // Clear existing data first
+  models.db.run('DELETE FROM battles', (err) => {
+    if (err) return res.status(500).json({ success: false, message: 'Failed to clear existing battles.' });
+    
+    models.db.run('DELETE FROM users', (err) => {
+      if (err) return res.status(500).json({ success: false, message: 'Failed to clear existing users.' });
+      
+      // Import users and their battles
+      let completed = 0;
+      let hasError = false;
+      
+      if (data.length === 0) {
+        return res.json({ success: true, message: 'Backup restored successfully.' });
+      }
+      
+      data.forEach(userData => {
+        // Handle both old format (name) and new format (username)
+        const username = userData.username || userData.name;
+        if (!username) {
+          hasError = true;
+          completed++;
+          if (completed === data.length) {
+            res.status(400).json({ success: false, message: 'Invalid user data: missing username/name field.' });
+          }
+          return;
+        }
+        
+        // Create user
+        models.getOrCreateUser(username, (err, user) => {
+          if (err) {
+            hasError = true;
+            completed++;
+            if (completed === data.length) {
+              res.status(500).json({ success: false, message: 'Failed to restore some users.' });
+            }
+            return;
+          }
+          
+          // Update user profile if additional fields exist
+          if (userData.title || userData.level || userData.gaijinId || userData.rank || userData.favoriteVehicle || userData.squadron) {
+            const profile = {
+              title: userData.title || '',
+              level: userData.level || '',
+              gaijinId: userData.gaijinId || '',
+              rank: userData.rank || '',
+              favoriteVehicle: userData.favoriteVehicle || '',
+              squadron: userData.squadron || ''
+            };
+            
+            models.updateUserProfile(user.id, profile, (err) => {
+              if (err) {
+                hasError = true;
+                completed++;
+                if (completed === data.length) {
+                  res.status(500).json({ success: false, message: 'Failed to update some user profiles.' });
+                }
+                return;
+              }
+              
+              // Add battles for this user
+              if (userData.battles && Array.isArray(userData.battles)) {
+                let battleCompleted = 0;
+                let battleHasError = false;
+                
+                if (userData.battles.length === 0) {
+                  completed++;
+                  if (completed === data.length) {
+                    res.json({ success: true, message: 'Backup restored successfully.' });
+                  }
+                  return;
+                }
+                
+                userData.battles.forEach(battle => {
+                  models.addBattle(user.id, battle, (err) => {
+                    if (err) battleHasError = true;
+                    battleCompleted++;
+                    
+                    if (battleCompleted === userData.battles.length) {
+                      if (battleHasError) {
+                        hasError = true;
+                      }
+                      completed++;
+                      if (completed === data.length) {
+                        if (hasError) {
+                          res.status(500).json({ success: false, message: 'Backup restored with some errors.' });
+                        } else {
+                          res.json({ success: true, message: 'Backup restored successfully.' });
+                        }
+                      }
+                    }
+                  });
+                });
+              } else {
+                completed++;
+                if (completed === data.length) {
+                  res.json({ success: true, message: 'Backup restored successfully.' });
+                }
+              }
+            });
+          } else {
+            // No profile to update, just add battles
+            if (userData.battles && Array.isArray(userData.battles)) {
+              let battleCompleted = 0;
+              let battleHasError = false;
+              
+              if (userData.battles.length === 0) {
+                completed++;
+                if (completed === data.length) {
+                  res.json({ success: true, message: 'Backup restored successfully.' });
+                }
+                return;
+              }
+              
+              userData.battles.forEach(battle => {
+                models.addBattle(user.id, battle, (err) => {
+                  if (err) battleHasError = true;
+                  battleCompleted++;
+                  
+                  if (battleCompleted === userData.battles.length) {
+                    if (battleHasError) {
+                      hasError = true;
+                    }
+                    completed++;
+                    if (completed === data.length) {
+                      if (hasError) {
+                        res.status(500).json({ success: false, message: 'Backup restored with some errors.' });
+                      } else {
+                        res.json({ success: true, message: 'Backup restored successfully.' });
+                      }
+                    }
+                  }
+                });
+              });
+            } else {
+              completed++;
+              if (completed === data.length) {
+                res.json({ success: true, message: 'Backup restored successfully.' });
+              }
+            }
+          }
+        });
+      });
     });
   });
 });

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Users, Edit, Plus, Search, Trash2 } from 'lucide-react';
 import { showMessage } from '../utils/helpers';
 
-const UserProfileEditor = ({ users, setUsers, selectedUserId, setSelectedUserId }) => {
+const UserProfileEditor = ({ users, setUsers, selectedUserId, setSelectedUserId, addUser, deleteUser, editUserProfile, loading }) => {
     const [editingUserId, setEditingUserId] = useState('');
     const [currentUserName, setCurrentUserName] = useState('');
     const [currentUserTitle, setCurrentUserTitle] = useState(''); // New title field
@@ -17,7 +17,7 @@ const UserProfileEditor = ({ users, setUsers, selectedUserId, setSelectedUserId 
         if (editingUserId) {
             const user = users.find(u => u.id === editingUserId);
             if (user) {
-                setCurrentUserName(user.name);
+                setCurrentUserName(user.username);
                 setCurrentUserTitle(user.title || ''); // Load title
                 setCurrentUserLevel(user.level || '');
                 setCurrentUserGaijinId(user.gaijinId || '');
@@ -36,46 +36,35 @@ const UserProfileEditor = ({ users, setUsers, selectedUserId, setSelectedUserId 
         }
     }, [editingUserId, users]);
 
-    const handleCreateOrUpdateUser = () => {
+    const handleCreateOrUpdateUser = async () => {
         if (!currentUserName.trim()) {
             showMessage("User name cannot be empty.", "error");
             return;
         }
 
         if (editingUserId) {
-            // Update existing user
-            setUsers(prevUsers => prevUsers.map(user =>
-                user.id === editingUserId
-                    ? {
-                        ...user,
-                        name: currentUserName.trim(),
-                        title: currentUserTitle.trim(), // Save title
-                        level: currentUserLevel.trim(),
-                        gaijinId: currentUserGaijinId.trim(),
-                        rank: currentUserRank.trim(),
-                        favoriteVehicle: currentUserFavVehicle.trim(),
-                        squadron: currentUserSquadron.trim()
-                    }
-                    : user
-            ));
-            showMessage(`User "${currentUserName.trim()}" updated successfully!`);
-        } else {
-            // Create new user
-            const newUser = {
-                id: crypto.randomUUID(),
-                name: currentUserName.trim(),
-                title: currentUserTitle.trim(), // Save title
+            // Update existing user profile
+            const profile = {
+                title: currentUserTitle.trim(),
                 level: currentUserLevel.trim(),
                 gaijinId: currentUserGaijinId.trim(),
                 rank: currentUserRank.trim(),
                 favoriteVehicle: currentUserFavVehicle.trim(),
-                squadron: currentUserSquadron.trim(),
-                battles: []
+                squadron: currentUserSquadron.trim()
             };
-            setUsers(prevUsers => [...prevUsers, newUser]);
-            setSelectedUserId(newUser.id); // Automatically select the new user
-            showMessage(`User "${newUser.name}" created successfully!`);
+            
+            if (editUserProfile) {
+                await editUserProfile(editingUserId, profile);
+                showMessage(`User profile updated successfully!`);
+            }
+        } else {
+            // Create new user
+            if (addUser) {
+                await addUser(currentUserName.trim());
+                showMessage(`User "${currentUserName.trim()}" created successfully!`);
+            }
         }
+        
         // Clear form after action
         setEditingUserId('');
         setCurrentUserName('');
@@ -87,16 +76,18 @@ const UserProfileEditor = ({ users, setUsers, selectedUserId, setSelectedUserId 
         setCurrentUserSquadron('');
     };
 
-    const handleDeleteUser = (userIdToDelete) => {
-        setUsers(prevUsers => prevUsers.filter(user => user.id !== userIdToDelete));
-        if (selectedUserId === userIdToDelete) {
-            setSelectedUserId(''); // Deselect if the current user is deleted
+    const handleDeleteUser = async (userIdToDelete) => {
+        if (deleteUser) {
+            await deleteUser(userIdToDelete);
+            if (selectedUserId === userIdToDelete) {
+                setSelectedUserId(''); // Deselect if the current user is deleted
+            }
+            showMessage("User deleted successfully!", "info");
         }
-        showMessage("User deleted successfully!", "info");
     };
 
     const filteredUsers = users.filter(user =>
-        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (user.gaijinId && user.gaijinId.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (user.title && user.title.toLowerCase().includes(searchTerm.toLowerCase()))
     );
@@ -203,10 +194,15 @@ const UserProfileEditor = ({ users, setUsers, selectedUserId, setSelectedUserId 
 
             <button
                 onClick={handleCreateOrUpdateUser}
+                disabled={loading}
                 className="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-3 px-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75 transition duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
             >
-                {editingUserId ? <Edit size={20} /> : <Plus size={20} />}
-                <span>{editingUserId ? 'Update User Profile' : 'Create New User'}</span>
+                {loading ? 'Processing...' : (
+                    <>
+                        {editingUserId ? <Edit size={20} /> : <Plus size={20} />}
+                        <span>{editingUserId ? 'Update User Profile' : 'Create New User'}</span>
+                    </>
+                )}
             </button>
 
             {users.length > 0 && (
@@ -237,7 +233,7 @@ const UserProfileEditor = ({ users, setUsers, selectedUserId, setSelectedUserId 
                                 {filteredUsers.length > 0 ? (
                                     filteredUsers.map(user => (
                                         <tr key={user.id} className="border-b border-gray-700 hover:bg-gray-800 transition duration-200 ease-in-out">
-                                            <td className="py-3 px-6">{user.name}</td>
+                                            <td className="py-3 px-6">{user.username}</td>
                                             <td className="py-3 px-6">{user.title || 'N/A'}</td>
                                             <td className="py-3 px-6">{user.level || 'N/A'}</td>
                                             <td className="py-3 px-6">{user.gaijinId || 'N/A'}</td>

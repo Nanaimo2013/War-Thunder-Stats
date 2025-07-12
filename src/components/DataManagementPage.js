@@ -4,27 +4,12 @@ import { showMessage } from '../utils/helpers';
 import UserProfileEditor from './UserProfileEditor';
 import BattleDataEntryComponent from './BattleDataEntry';
 
-const DataManagementPage = ({ users, setUsers, selectedUserId, setSelectedUserId, battleDataInput, setBattleDataInput, handleProcessBattleData, loading }) => {
+const DataManagementPage = ({ users, setUsers, selectedUserId, setSelectedUserId, battleDataInput, setBattleDataInput, handleProcessBattleData, loading, backupData, restoreData, addUser, deleteUser, editUserProfile }) => {
     const handleExportData = () => {
-        try {
-            const data = sessionStorage.getItem('warThunderUsers');
-            if (!data) {
-                showMessage("No data to export.", "error");
-                return;
-            }
-            const blob = new Blob([data], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `war_thunder_stats_backup_${new Date().toISOString().slice(0, 10)}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            showMessage("Data exported successfully!");
-        } catch (error) {
-            console.error("Error exporting data:", error);
-            showMessage("Failed to export data.", "error");
+        if (backupData) {
+            backupData();
+        } else {
+            showMessage("Backup function not available.", "error");
         }
     };
 
@@ -39,13 +24,13 @@ const DataManagementPage = ({ users, setUsers, selectedUserId, setSelectedUserId
         reader.onload = (e) => {
             try {
                 const importedData = JSON.parse(e.target.result);
-                // Basic validation: Check if it's an array and contains 'name' and 'battles'
-                if (Array.isArray(importedData) && importedData.every(user => user.id && user.name && Array.isArray(user.battles))) {
-                    sessionStorage.setItem('warThunderUsers', JSON.stringify(importedData));
-                    setUsers(importedData); // Update state to reflect imported data
-                    showMessage("Data imported successfully! Page will reload to apply changes.");
-                    // Reload to ensure all components re-initialize with new session data
-                    window.location.reload();
+                // Basic validation: Check if it's an array and contains user data (support both old 'name' and new 'username' format)
+                if (Array.isArray(importedData) && importedData.every(user => (user.username || user.name) && Array.isArray(user.battles))) {
+                    if (restoreData) {
+                        restoreData(importedData);
+                    } else {
+                        showMessage("Restore function not available.", "error");
+                    }
                 } else {
                     showMessage("Invalid file format. Please import a valid War Thunder stats JSON.", "error");
                 }
@@ -68,6 +53,10 @@ const DataManagementPage = ({ users, setUsers, selectedUserId, setSelectedUserId
                 setUsers={setUsers}
                 selectedUserId={selectedUserId}
                 setSelectedUserId={setSelectedUserId}
+                addUser={addUser}
+                deleteUser={deleteUser}
+                editUserProfile={editUserProfile}
+                loading={loading}
             />
 
             <BattleDataEntryComponent
