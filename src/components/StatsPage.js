@@ -177,7 +177,7 @@ const StatsPage = ({ users, selectedUserId, setSelectedUserId, stats, battles })
                 >
                     <option value="">-- Select a user --</option>
                     {users.map(user => (
-                        <option key={user.id} value={user.id}>{user.username}</option>
+                        <option key={user.id} value={user.id}>{user.name}</option>
                     ))}
                 </select>
             </div>
@@ -185,7 +185,7 @@ const StatsPage = ({ users, selectedUserId, setSelectedUserId, stats, battles })
             {currentUser && (
                 <div className="mb-6 bg-gray-900 p-6 rounded-xl shadow-inner border border-gray-700">
                     <h3 className="text-2xl font-bold text-yellow-300 mb-4 flex items-center space-x-2">
-                        <Users size={24} /> <span>Player Profile: {currentUser.username}</span>
+                        <Users size={24} /> <span>Player Profile: {currentUser.name}</span>
                     </h3>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

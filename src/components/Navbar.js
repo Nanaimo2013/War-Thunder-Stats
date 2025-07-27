@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Users, BarChart2, Award, GitCompare, Info } from 'lucide-react';
+import { Home, Users, BarChart2, Award, GitCompare, Info, FileText } from 'lucide-react';
 
 // Custom SVG Logo for Navbar Title
 const WarThunderLogo = () => (
@@ -24,6 +24,7 @@ const Navbar = ({ setCurrentPage, currentPage }) => {
         { name: 'Leaderboard', page: 'leaderboard', icon: <Award size={18} /> },
         { name: 'Compare Players', page: 'compare-players', icon: <GitCompare size={18} /> },
         { name: 'Data Management', page: 'data-management', icon: <Users size={18} /> },
+        { name: 'Battle Logs', page: 'battle-logs', icon: <FileText size={18} /> },
         { name: 'About', page: 'about', icon: <Info size={18} /> },
     ];
 
