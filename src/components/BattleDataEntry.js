@@ -192,7 +192,7 @@ const BattleDataEntryComponent = ({ users, selectedUserId, setSelectedUserId, ba
                 >
                     <option value="">-- Select a user --</option>
                     {users.map(user => (
-                        <option key={user.id} value={user.id}>{user.username}</option>
+                        <option key={user.id} value={user.id}>{user.name}</option>
                     ))}
                 </select>
             </div>
