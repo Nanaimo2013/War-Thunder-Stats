@@ -47,20 +47,211 @@
     background: #9CA3AF; /* gray-400 */
 }
 
-/* Message box styles */
+/* Notification container for multiple notifications */
+.notification-container {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    max-height: calc(100vh - 2rem);
+    overflow: hidden;
+    pointer-events: none;
+    padding-right: 0.5rem;
+    width: 350px;
+}
+
+/* Individual notification styles */
+.notification {
+    position: relative;
+    padding: 1rem 1.5rem;
+    border-radius: 0.75rem;
+    text-align: left;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 300px;
+    max-width: 500px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    pointer-events: auto;
+    transform: translateX(0);
+    opacity: 1;
+}
+
+/* Notification animations */
+.notification.notification-enter {
+    transform: translateX(100%);
+    opacity: 0;
+}
+
+.notification.notification-enter-active {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.notification.notification-exit {
+    transform: translateX(100%);
+    opacity: 0;
+    margin-bottom: -6rem; /* Collapse height when exiting */
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    overflow: hidden;
+}
+
+/* Legacy support for single message-box */
 .message-box {
     position: fixed;
     top: 1rem;
-    left: 50%;
-    transform: translateX(-50%);
+    right: 1rem;
     z-index: 50;
-    padding: 0.75rem;
+    padding: 1rem 1.5rem;
     border-radius: 0.75rem;
-    text-align: center;
+    text-align: left;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
     transition: all 0.3s ease-in-out;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 300px;
+    max-width: 500px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+/* Notification content styles */
+.notification .notification-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.notification .notification-close {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 0.25rem;
+    opacity: 0.7;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.notification .notification-close:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.1);
+    transform: scale(1.1);
+}
+
+.notification .notification-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 0 0 0.75rem 0.75rem;
+    transition: width linear;
+}
+
+/* Legacy support */
+.message-box .message-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.message-box .message-close {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 0.25rem;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.message-box .message-close:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.message-box .message-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 0 0 0.75rem 0.75rem;
+    transition: width linear;
+}
+
+/* Notification progress bar colors */
+.notification .notification-progress.success {
+    background: rgba(34, 197, 94, 0.8);
+}
+
+.notification .notification-progress.error {
+    background: rgba(239, 68, 68, 0.8);
+}
+
+.notification .notification-progress.warning {
+    background: rgba(245, 158, 11, 0.8);
+}
+
+.notification .notification-progress.info {
+    background: rgba(59, 130, 246, 0.8);
+}
+
+/* Legacy support */
+.message-box .message-progress.success {
+    background: rgba(34, 197, 94, 0.8);
+}
+
+.message-box .message-progress.error {
+    background: rgba(239, 68, 68, 0.8);
+}
+
+.message-box .message-progress.warning {
+    background: rgba(245, 158, 11, 0.8);
+}
+
+.message-box .message-progress.info {
+    background: rgba(59, 130, 246, 0.8);
+}
+
+/* Notification background colors */
+.notification.success {
+    background-color: rgba(21, 128, 61, 0.95); /* green-700 with transparency */
+    color: white;
+}
+
+.notification.error {
+    background-color: rgba(185, 28, 28, 0.95); /* red-700 with transparency */
+    color: white;
+}
+
+.notification.warning {
+    background-color: rgba(180, 83, 9, 0.95); /* orange-700 with transparency */
+    color: white;
+}
+
+.notification.info {
+    background-color: rgba(29, 78, 216, 0.95); /* blue-700 with transparency */
+    color: white;
+}
+
+/* Legacy support */
 .message-box.success {
     background-color: #15803d; /* green-700 */
     color: white;
@@ -96,4 +287,45 @@
         padding-left: 2rem;
         padding-right: 2rem;
     }
+}
+
+/* Smooth dropdown animations */
+.battle-preview-dropdown {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.battle-preview-dropdown.expanded {
+    max-height: 1000px;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Fade in animation for page elements */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.6s ease-out;
+}
+
+/* Smooth hover effects */
+.hover-lift {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
 } 

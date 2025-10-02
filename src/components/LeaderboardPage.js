@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { Award, Trophy, Target, DollarSign, TrendingUp, Users, Medal, Crown, Star, ArrowUpDown, Filter, Search, BarChart3, Zap, Activity, Sword, Target as TargetIcon } from 'lucide-react';
 import { calculateStats } from '../utils/statsCalculator';
+import ItemTypeIcon from './ItemTypeIcon';
 import { formatNumber, formatCurrency } from '../utils/helpers';
 
 const LeaderboardPage = ({ users }) => {
@@ -157,8 +158,11 @@ const LeaderboardPage = ({ users }) => {
                 </div>
                 <div className="text-center p-4 bg-gradient-to-br from-gray-800 to-gray-700 rounded-xl border border-gray-600/50">
                     <DollarSign size={24} className="text-green-500 mx-auto mb-2 drop-shadow-lg" />
-                    <p className="text-gray-400 text-sm font-semibold">Earned SL</p>
-                    <p className="text-green-400 font-black text-lg">{formatCurrency(stats.totalEarnedSL, 'SL', { decimals: 0 })}</p>
+                                            <div className="flex items-center justify-center gap-2">
+                                                <ItemTypeIcon type="warpoints" size="sm" />
+                                                <p className="text-gray-400 text-sm font-semibold">Earned SL</p>
+                                            </div>
+                                            <p className="text-green-400 font-black text-lg">{formatCurrency(stats.totalEarnedSL, 'SL', { decimals: 0 })}</p>
                 </div>
                 <div className="text-center p-4 bg-gradient-to-br from-gray-800 to-gray-700 rounded-xl border border-gray-600/50">
                     <TrendingUp size={24} className="text-purple-500 mx-auto mb-2 drop-shadow-lg" />
@@ -474,7 +478,7 @@ const LeaderboardPage = ({ users }) => {
                 )}
             </div>
 
-            <style jsx>{`
+            <style jsx="true">{`
                 @keyframes fadeIn {
                     from { opacity: 0; transform: translateY(20px); }
                     to { opacity: 1; transform: translateY(0); }

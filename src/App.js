@@ -4,6 +4,7 @@ import './App.css';
 // Import utilities
 import { useSessionStorage, showMessage } from './utils/helpers';
 import { calculateStats } from './utils/statsCalculator';
+import { preloadCommonAssets } from './utils/assetManager';
 
 // Import components
 import Navbar from './components/Navbar';
@@ -30,6 +31,11 @@ const App = () => {
     const [modalMessage, setModalMessage] = useState('');
 
     // Initialize selectedUserId if users exist
+    useEffect(() => {
+        // Preload common UI assets (flags, item types, base vehicle icons)
+        try { preloadCommonAssets(); } catch (e) { /* no-op */ }
+    }, []);
+
     useEffect(() => {
         if (users.length > 0 && !selectedUserId) {
             setSelectedUserId(users[0].id);
@@ -141,7 +147,7 @@ const App = () => {
 
     return (
         <div className="min-h-screen flex flex-col items-center bg-gray-950 font-inter text-gray-100">
-            <div id="message-box" className="hidden"></div> {/* Message box for showMessage */}
+            {/* Notification container is created dynamically by the notification system */}
 
             {/* Confirmation Modal */}
             {showConfirmModal && (

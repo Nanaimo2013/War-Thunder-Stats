@@ -204,9 +204,9 @@ const AboutPage = () => (
                 </div>
                 <p className="text-gray-400 leading-relaxed max-w-4xl mx-auto">
                     This is an unofficial fan-made tool and is not affiliated with, endorsed, or sponsored by Gaijin Entertainment. 
-                    War Thunder and its associated logos are trademarks of Gaijin Entertainment. 
+            War Thunder and its associated logos are trademarks of Gaijin Entertainment.
                     This application is created by fans, for fans, to enhance the War Thunder gaming experience.
-                </p>
+        </p>
             </div>
         </div>
     </div>

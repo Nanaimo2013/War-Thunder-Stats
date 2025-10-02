@@ -6,6 +6,10 @@ import {
     PolarAngleAxis, PolarRadiusAxis, Radar, ComposedChart, ScatterChart, Scatter
 } from 'recharts';
 import { calculateStats } from '../utils/statsCalculator';
+import { extractVehicleInfo } from '../utils/assetManager';
+import CountryFlag from './CountryFlag';
+import ItemTypeIcon from './ItemTypeIcon';
+import VehicleIcon from './VehicleIcon';
 
 const StatsPage = ({ users, selectedUserId, setSelectedUserId, stats, battles }) => {
     const currentUser = users.find(u => u.id === selectedUserId);
@@ -321,7 +325,7 @@ const StatsPage = ({ users, selectedUserId, setSelectedUserId, stats, battles })
                                     {/* Economy */}
                                     <div className="bg-gradient-to-br from-yellow-600 to-yellow-700 p-3 rounded-xl shadow-lg border border-yellow-500 flex flex-col items-center justify-center min-w-[140px]">
                                         <div className="flex items-center space-x-2">
-                                            <DollarSign size={20} className="text-yellow-200" />
+                                            <ItemTypeIcon type="warpoints" size="sm" className="filter drop-shadow" />
                                             <span className="text-yellow-100 text-xs">Total SL</span>
                                         </div>
                                         <span className="text-white text-xl font-bold">{(enhancedStats.totalEarnedSL || 0).toLocaleString()}</span>
@@ -329,7 +333,7 @@ const StatsPage = ({ users, selectedUserId, setSelectedUserId, stats, battles })
                                     {/* Research */}
                                     <div className="bg-gradient-to-br from-purple-600 to-purple-700 p-3 rounded-xl shadow-lg border border-purple-500 flex flex-col items-center justify-center min-w-[140px]">
                                         <div className="flex items-center space-x-2">
-                                            <Zap size={20} className="text-purple-200" />
+                                            <ItemTypeIcon type="rp" size="sm" className="filter drop-shadow" />
                                             <span className="text-purple-100 text-xs">Total RP</span>
                                         </div>
                                         <span className="text-white text-xl font-bold">{(enhancedStats.overallTotalRP || 0).toLocaleString()}</span>
@@ -364,10 +368,10 @@ const StatsPage = ({ users, selectedUserId, setSelectedUserId, stats, battles })
                                     <h4 className="font-semibold text-lg text-yellow-300 mb-2 flex items-center space-x-2">
                                         <DollarSign size={20} /> <span>Economy Stats</span>
                                     </h4>
-                                    <p>Total Earned SL: <span className="font-medium text-gray-200">{enhancedStats.totalEarnedSL?.toLocaleString()}</span></p>
-                                    <p>Total Earned RP: <span className="font-medium text-gray-200">{enhancedStats.overallTotalRP?.toLocaleString()}</span></p>
-                                    <p>Total Awards SL: <span className="font-medium text-gray-200">{enhancedStats.totalAwardsSL?.toLocaleString()}</span></p>
-                                    <p>Total Awards RP: <span className="font-medium text-gray-200">{enhancedStats.totalAwardsRP?.toLocaleString()}</span></p>
+                                    <p className="flex items-center gap-2"><ItemTypeIcon type="warpoints" size="sm" /> <span>Total Earned SL:</span> <span className="font-medium text-gray-200">{enhancedStats.totalEarnedSL?.toLocaleString()}</span></p>
+                                    <p className="flex items-center gap-2"><ItemTypeIcon type="rp" size="sm" /> <span>Total Earned RP:</span> <span className="font-medium text-gray-200">{enhancedStats.overallTotalRP?.toLocaleString()}</span></p>
+                                    <p className="flex items-center gap-2"><ItemTypeIcon type="warpoints" size="sm" /> <span>Total Awards SL:</span> <span className="font-medium text-gray-200">{enhancedStats.totalAwardsSL?.toLocaleString()}</span></p>
+                                    <p className="flex items-center gap-2"><ItemTypeIcon type="rp" size="sm" /> <span>Total Awards RP:</span> <span className="font-medium text-gray-200">{enhancedStats.totalAwardsRP?.toLocaleString()}</span></p>
                                     <p>Repair Costs: <span className="font-medium text-gray-200">{Math.abs(enhancedStats.totalAutoRepairCost || 0).toLocaleString()}</span></p>
                                     <p>Net Profit: <span className="font-medium text-gray-200">{(enhancedStats.totalEarnedSL + enhancedStats.totalAwardsSL + Math.abs(enhancedStats.totalAutoRepairCost || 0)).toLocaleString()}</span></p>
                                 </div>
@@ -773,20 +777,36 @@ const StatsPage = ({ users, selectedUserId, setSelectedUserId, stats, battles })
                                 <div className="bg-gray-900 p-4 rounded-xl shadow-sm border border-gray-700">
                                     <h4 className="font-semibold text-lg text-yellow-300 mb-2">Top Vehicles (Kills)</h4>
                                     {stats.topVehiclesKills.length > 0 ? (
-                                        <ul className="list-disc list-inside text-gray-200">
-                                            {stats.topVehiclesKills.map((item, index) => (
-                                                <li key={index}>{item.vehicle}: {item.count} kills</li>
-                                            ))}
+                                        <ul className="text-gray-200 space-y-2">
+                                            {stats.topVehiclesKills.map((item, index) => {
+                                                const info = extractVehicleInfo(item.vehicle);
+                                                return (
+                                                    <li key={index} className="flex items-center gap-2">
+                                                        <CountryFlag country={info.country} size="xs" />
+                                                        <VehicleIcon vehicleName={item.vehicle} size="sm" />
+                                                        <span className="truncate">{item.vehicle}</span>
+                                                        <span className="ml-auto text-yellow-300 font-semibold">{item.count} kills</span>
+                                                    </li>
+                                                );
+                                            })}
                                         </ul>
                                     ) : <p className="text-gray-400">No data</p>}
                                 </div>
                                 <div className="bg-gray-900 p-4 rounded-xl shadow-sm border border-gray-700">
                                     <h4 className="font-semibold text-lg text-yellow-300 mb-2">Top Vehicles (Damage Events)</h4>
                                     {stats.topVehiclesDamage.length > 0 ? (
-                                        <ul className="list-disc list-inside text-gray-200">
-                                            {stats.topVehiclesDamage.map((item, index) => (
-                                                <li key={index}>{item.vehicle}: {item.count} damage events</li>
-                                            ))}
+                                        <ul className="text-gray-200 space-y-2">
+                                            {stats.topVehiclesDamage.map((item, index) => {
+                                                const info = extractVehicleInfo(item.vehicle);
+                                                return (
+                                                    <li key={index} className="flex items-center gap-2">
+                                                        <CountryFlag country={info.country} size="xs" />
+                                                        <VehicleIcon vehicleName={item.vehicle} size="sm" />
+                                                        <span className="truncate">{item.vehicle}</span>
+                                                        <span className="ml-auto text-purple-300 font-semibold">{item.count}</span>
+                                                    </li>
+                                                );
+                                            })}
                                         </ul>
                                     ) : <p className="text-gray-400">No data</p>}
                                 </div>

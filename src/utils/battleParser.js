@@ -1,4 +1,6 @@
 // Function to parse a single battle log text
+import { extractVehicleInfo, getVehicleIcon, getCountryFlag } from './assetManager';
+
 export const parseBattleLog = (logText) => {
     const battle = {
         id: crypto.randomUUID(), // Unique ID for each battle
@@ -38,7 +40,11 @@ export const parseBattleLog = (logText) => {
         detailedAwards: [],
         detailedActivityTime: [],
         detailedTimePlayed: [],
-        detailedSkillBonus: []
+        detailedSkillBonus: [],
+        // Enhanced vehicle information
+        vehicles: [],
+        vehicleIcons: {},
+        countryFlags: {}
     };
 
     // Result
@@ -290,5 +296,89 @@ export const parseBattleLog = (logText) => {
         battle.totalRP = parseInt(totalMatch[3], 10);
     }
 
+    // Extract and enhance vehicle information
+    battle.vehicles = extractVehiclesFromBattle(battle);
+    battle.vehicleIcons = generateVehicleIcons(battle.vehicles);
+    battle.countryFlags = generateCountryFlags(battle.vehicles);
+    
     return battle;
+};
+
+// Extract all vehicles mentioned in the battle
+const extractVehiclesFromBattle = (battle) => {
+    const vehicles = new Set();
+    
+    // Extract from detailed kills
+    battle.detailedKills.forEach(kill => {
+        if (kill.vehicle) vehicles.add(kill.vehicle);
+        if (kill.target) vehicles.add(kill.target);
+    });
+    
+    // Extract from detailed assists
+    battle.detailedAssists.forEach(assist => {
+        if (assist.vehicle) vehicles.add(assist.vehicle);
+        if (assist.target) vehicles.add(assist.target);
+    });
+    
+    // Extract from detailed damage sections
+    battle.detailedSevereDamage.forEach(damage => {
+        if (damage.vehicle) vehicles.add(damage.vehicle);
+        if (damage.target) vehicles.add(damage.target);
+    });
+    
+    battle.detailedCriticalDamage.forEach(damage => {
+        if (damage.vehicle) vehicles.add(damage.vehicle);
+        if (damage.target) vehicles.add(damage.target);
+    });
+    
+    battle.detailedDamage.forEach(damage => {
+        if (damage.vehicle) vehicles.add(damage.vehicle);
+        if (damage.target) vehicles.add(damage.target);
+    });
+    
+    // Extract from activity time
+    battle.detailedActivityTime.forEach(activity => {
+        if (activity.vehicle) vehicles.add(activity.vehicle);
+    });
+    
+    // Extract from time played
+    battle.detailedTimePlayed.forEach(time => {
+        if (time.vehicle) vehicles.add(time.vehicle);
+    });
+    
+    // Extract from skill bonus
+    battle.detailedSkillBonus.forEach(skill => {
+        if (skill.vehicle) vehicles.add(skill.vehicle);
+    });
+    
+    // Convert to array and enhance with vehicle info
+    return Array.from(vehicles).map(vehicleName => {
+        const vehicleInfo = extractVehicleInfo(vehicleName);
+        return {
+            name: vehicleName,
+            ...vehicleInfo
+        };
+    });
+};
+
+// Generate vehicle icons for all vehicles in the battle
+const generateVehicleIcons = (vehicles) => {
+    const icons = {};
+    vehicles.forEach(vehicle => {
+        icons[vehicle.name] = {
+            icon: getVehicleIcon(vehicle.name, vehicle.country, vehicle.rank, vehicle.type),
+            info: vehicle
+        };
+    });
+    return icons;
+};
+
+// Generate country flags for all countries in the battle
+const generateCountryFlags = (vehicles) => {
+    const countries = new Set(vehicles.map(v => v.country).filter(c => c));
+    const flags = {};
+    countries.forEach(country => {
+        flags[country] = getCountryFlag(country);
+    });
+    return flags;
 }; 

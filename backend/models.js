@@ -84,6 +84,104 @@ function deleteBattle(battle_id, cb) {
   db.run('DELETE FROM battles WHERE id = ?', [battle_id], cb);
 }
 
+// --- ADMIN HELPERS ---
+
+// Get system-wide statistics for admin dashboard
+function getSystemStats(cb) {
+  const stats = {};
+  
+  // Get total users
+  db.get('SELECT COUNT(*) as count FROM users', [], (err, row) => {
+    if (err) return cb(err);
+    stats.totalUsers = row.count;
+    
+    // Get total battles
+    db.get('SELECT COUNT(*) as count FROM battles', [], (err, row) => {
+      if (err) return cb(err);
+      stats.totalBattles = row.count;
+      
+      // Get battles in last 24 hours
+      db.get(`SELECT COUNT(*) as count FROM battles 
+              WHERE timestamp > datetime('now', '-1 day')`, [], (err, row) => {
+        if (err) return cb(err);
+        stats.battlesLast24h = row.count;
+        
+        // Get battles in last 7 days
+        db.get(`SELECT COUNT(*) as count FROM battles 
+                WHERE timestamp > datetime('now', '-7 days')`, [], (err, row) => {
+          if (err) return cb(err);
+          stats.battlesLast7d = row.count;
+          
+          // Get most active users
+          db.all(`SELECT u.username, COUNT(b.id) as battle_count 
+                  FROM users u 
+                  LEFT JOIN battles b ON u.id = b.user_id 
+                  GROUP BY u.id, u.username 
+                  ORDER BY battle_count DESC 
+                  LIMIT 10`, [], (err, rows) => {
+            if (err) return cb(err);
+            stats.mostActiveUsers = rows;
+            
+            // Get recent battles
+            db.all(`SELECT u.username, b.timestamp, 
+                           JSON_EXTRACT(b.battle_data, '$.result') as result,
+                           JSON_EXTRACT(b.battle_data, '$.missionName') as mission
+                    FROM battles b 
+                    JOIN users u ON b.user_id = u.id 
+                    ORDER BY b.timestamp DESC 
+                    LIMIT 20`, [], (err, rows) => {
+              if (err) return cb(err);
+              stats.recentBattles = rows;
+              
+              cb(null, stats);
+            });
+          });
+        });
+      });
+    });
+  });
+}
+
+// Get all users with their battle counts (for admin)
+function getAllUsersWithStats(cb) {
+  db.all(`SELECT u.*, COUNT(b.id) as battle_count,
+                 MAX(b.timestamp) as last_battle
+          FROM users u 
+          LEFT JOIN battles b ON u.id = b.user_id 
+          GROUP BY u.id, u.username, u.title, u.level, u.gaijinId, u.rank, u.favoriteVehicle, u.squadron
+          ORDER BY battle_count DESC`, [], cb);
+}
+
+// Delete user and all associated data
+function deleteUserCompletely(userId, cb) {
+  db.serialize(() => {
+    db.run('BEGIN TRANSACTION');
+    db.run('DELETE FROM battles WHERE user_id = ?', [userId]);
+    db.run('DELETE FROM stats WHERE user_id = ?', [userId]);
+    db.run('DELETE FROM discord_links WHERE user_id = ?', [userId]);
+    db.run('DELETE FROM users WHERE id = ?', [userId]);
+    db.run('COMMIT', cb);
+  });
+}
+
+// Get user activity over time (for charts)
+function getUserActivityOverTime(userId, days = 30, cb) {
+  db.all(`SELECT DATE(timestamp) as date, COUNT(*) as battles
+          FROM battles 
+          WHERE user_id = ? AND timestamp > datetime('now', '-${days} days')
+          GROUP BY DATE(timestamp)
+          ORDER BY date ASC`, [userId], cb);
+}
+
+// Get system activity over time
+function getSystemActivityOverTime(days = 30, cb) {
+  db.all(`SELECT DATE(timestamp) as date, COUNT(*) as battles
+          FROM battles 
+          WHERE timestamp > datetime('now', '-${days} days')
+          GROUP BY DATE(timestamp)
+          ORDER BY date ASC`, [], cb);
+}
+
 // --- HELPERS ---
 
 // Update stats for user
@@ -135,5 +233,11 @@ module.exports = {
   getStatsByDiscordId,
   getLeaderboard,
   linkDiscord,
+  // Admin functions
+  getSystemStats,
+  getAllUsersWithStats,
+  deleteUserCompletely,
+  getUserActivityOverTime,
+  getSystemActivityOverTime,
   db
-}; 
+};

@@ -1,6 +1,6 @@
-# War Thunder Stats Tracker
+# War Thunder Stats Tracker - Monorepo
 
-A comprehensive React application for tracking and analyzing War Thunder battle statistics. This tool allows players to parse battle logs, view detailed statistics, compare performance with other players, and manage their gaming data locally.
+A comprehensive full-stack application for tracking and analyzing War Thunder battle statistics. This monorepo contains the backend API, frontend client, and admin dashboard for managing War Thunder gaming data.
 
 ## Features
 
@@ -12,6 +12,49 @@ A comprehensive React application for tracking and analyzing War Thunder battle 
 - **Leaderboard**: Track performance across multiple users
 - **Data Export/Import**: Backup and restore your data locally
 - **Responsive Design**: Works on desktop and mobile devices
+
+## Workspace Structure
+
+```
+/
+├── backend/          # Express.js API server (Port 4000)
+├── frontend/         # Public client application
+├── admin/           # Admin dashboard (Port 5000)
+├── src/             # Legacy frontend source (to be migrated)
+├── public/          # Static assets
+├── package.json     # Root package.json for workspace management
+└── README.md        # This file
+```
+
+## Package Overview
+
+### `/backend` - Express API Server
+- **Port**: 4000
+- **Purpose**: Main API server handling data management, battle logs, and business logic
+- **Technology**: Express.js, Node.js
+- **Features**:
+  - Data management APIs
+  - Battle log processing
+  - Authentication & authorization
+  - Database operations
+
+### `/frontend` - Public Client
+- **Purpose**: Public-facing web application
+- **Technology**: React.js
+- **Features**:
+  - User interface with loading states and placeholders
+  - Consumes APIs from backend
+  - Lightweight client-side logic
+
+### `/admin` - Admin Dashboard
+- **Port**: 5000
+- **Purpose**: Administrative interface for managing the application
+- **Technology**: Express.js + Admin UI framework
+- **Features**:
+  - User management
+  - Data administration
+  - System monitoring
+  - Configuration management
 
 ## Tech Stack
 
@@ -83,12 +126,68 @@ war-thunder-stats-tracker/
 └── README.md          # Project documentation
 ```
 
-## Available Scripts
+## Development Commands
 
-- `npm start` - Runs the app in development mode
-- `npm run build` - Builds the app for production
+### Root Level Commands
+```bash
+# Install all dependencies for all packages
+npm install
+
+# Start all services in development mode
+npm run dev
+
+# Build all packages
+npm run build
+
+# Run tests across all packages
+npm test
+
+# Clean all build artifacts
+npm run clean
+```
+
+### Backend Commands
+```bash
+cd backend
+npm install
+npm run dev      # Start on port 4000
+npm run build
+npm test
+```
+
+### Frontend Commands
+```bash
+cd frontend
+npm install
+npm run dev      # Start development server
+npm run build
+npm test
+```
+
+### Admin Commands
+```bash
+cd admin
+npm install
+npm run dev      # Start on port 5000
+npm run build
+npm test
+```
+
+### Legacy Commands (Current Setup)
+- `npm start` - Runs the current React app in development mode
+- `npm run build` - Builds the current app for production
 - `npm test` - Launches the test runner
 - `npm run eject` - Ejects from Create React App (one-way operation)
+
+## Getting Started
+
+1. Clone the repository
+2. Install dependencies: `npm install`
+3. Start all services: `npm run dev`
+4. Access the applications:
+   - Frontend: http://localhost:3000
+   - Backend API: http://localhost:4000
+   - Admin Dashboard: http://localhost:5000
 
 ## Data Privacy
 

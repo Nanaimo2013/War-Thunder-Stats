@@ -8,78 +8,174 @@ const MESSAGE_TYPES = {
     info: { className: 'info', icon: 'ℹ️', duration: 4000 }
 };
 
-// Message queue to handle multiple messages
-let messageQueue = [];
-let isShowingMessage = false;
+// Notification stack management
+let notificationStack = [];
+let maxNotifications = 6;
 
-// Enhanced message display function
+// Enhanced message display function with stack support
 export const showMessage = (msg, type = 'info', options = {}) => {
     const config = MESSAGE_TYPES[type] || MESSAGE_TYPES.info;
     const duration = options.duration || config.duration;
     
-    const message = {
-        id: Date.now() + Math.random(),
+    // Check for duplicate messages in the last 3 seconds
+    const now = Date.now();
+    const recentDuplicate = notificationStack.find(notif => 
+        notif.text === msg && 
+        notif.type === type && 
+        (now - notif.timestamp) < 3000
+    );
+    
+    if (recentDuplicate) {
+        return; // Don't show duplicate notification
+    }
+    
+    const notification = {
+        id: `notification-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         text: msg,
         type,
         className: config.className,
         icon: config.icon,
-        duration
+        duration,
+        timestamp: Date.now()
     };
 
-    messageQueue.push(message);
+    // Add to stack
+    notificationStack.push(notification);
     
-    if (!isShowingMessage) {
-        showNextMessage();
+    // Remove oldest notification if we exceed the limit
+    if (notificationStack.length > maxNotifications) {
+        const oldestNotification = notificationStack.shift();
+        removeNotificationFromDOM(oldestNotification.id);
+    }
+    
+    // Render the notification stack
+    renderNotificationStack();
+};
+
+// Render the entire notification stack
+const renderNotificationStack = () => {
+    // Get or create notification container
+    let container = document.getElementById('notification-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'notification-container';
+        container.className = 'notification-container';
+        document.body.appendChild(container);
+    }
+
+    // Clear existing notifications
+    container.innerHTML = '';
+
+    // Render each notification
+    notificationStack.forEach((notification, index) => {
+        const notificationElement = createNotificationElement(notification, index);
+        container.appendChild(notificationElement);
+    });
+};
+
+// Create individual notification element
+const createNotificationElement = (notification, index) => {
+    const element = document.createElement('div');
+    element.className = `notification ${notification.className}`;
+    element.id = notification.id;
+    element.style.animationDelay = `${index * 0.1}s`;
+    
+    // Create notification content
+    element.innerHTML = `
+        <div class="notification-content">
+            <span class="notification-icon">${notification.icon}</span>
+            <span class="notification-text">${notification.text}</span>
+        </div>
+        <button class="notification-close" onclick="closeNotification('${notification.id}')" title="Close">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+        </button>
+        <div class="notification-progress ${notification.className}" id="progress-${notification.id}"></div>
+    `;
+
+    // Start progress bar animation
+    setTimeout(() => {
+        const progressBar = element.querySelector(`#progress-${notification.id}`);
+        if (progressBar) {
+            progressBar.style.width = '100%';
+            progressBar.style.transition = `width ${notification.duration}ms linear`;
+            setTimeout(() => {
+                if (progressBar) {
+                    progressBar.style.width = '0%';
+                }
+            }, 50);
+        }
+    }, 100);
+
+    // Auto-hide after duration
+    const hideTimeout = setTimeout(() => {
+        removeNotification(notification.id);
+    }, notification.duration);
+
+    // Store timeout ID
+    element.setAttribute('data-timeout', hideTimeout);
+
+    // Add enter animation
+    setTimeout(() => {
+        element.classList.add('notification-enter-active');
+    }, 10);
+
+    return element;
+};
+
+// Remove notification from stack and DOM
+const removeNotification = (notificationId) => {
+    // Find and remove from stack
+    const index = notificationStack.findIndex(n => n.id === notificationId);
+    if (index !== -1) {
+        notificationStack.splice(index, 1);
+        removeNotificationFromDOM(notificationId);
+        renderNotificationStack(); // Re-render to update positions
     }
 };
 
-// Show next message in queue
-const showNextMessage = () => {
-    if (messageQueue.length === 0) {
-        isShowingMessage = false;
-        return;
-    }
+// Remove notification from DOM with animation
+const removeNotificationFromDOM = (notificationId) => {
+    const element = document.getElementById(notificationId);
+    if (element) {
+        // Clear timeout
+        const timeoutId = element.getAttribute('data-timeout');
+        if (timeoutId) {
+            clearTimeout(parseInt(timeoutId));
+        }
 
-    isShowingMessage = true;
-    const message = messageQueue.shift();
-    
-    const messageBox = document.getElementById('message-box');
-    if (messageBox) {
-        messageBox.innerHTML = `
-            <span class="message-icon">${message.icon}</span>
-            <span class="message-text">${message.text}</span>
-        `;
-        messageBox.className = `message-box ${message.className} animate-in`;
-        messageBox.style.display = 'flex';
+        // Add exit animation
+        element.classList.add('notification-exit');
         
-        // Auto-hide after duration
+        // Remove from DOM after animation
         setTimeout(() => {
-            if (messageBox) {
-                messageBox.classList.add('animate-out');
-                setTimeout(() => {
-                    if (messageBox) {
-                        messageBox.style.display = 'none';
-                        messageBox.classList.remove('animate-in', 'animate-out');
-                    }
-                    showNextMessage(); // Show next message in queue
-                }, 300); // Animation duration
+            if (element.parentNode) {
+                element.parentNode.removeChild(element);
             }
-        }, message.duration);
-    } else {
-        // Fallback to console if message box doesn't exist
-        console.log(`${message.icon} ${message.text}`);
-        setTimeout(showNextMessage, 100);
+        }, 400); // Animation duration
     }
+};
+
+// Global close function for notification close buttons
+window.closeNotification = (notificationId) => {
+    removeNotification(notificationId);
 };
 
 // Clear all pending messages
 export const clearMessages = () => {
-    messageQueue = [];
-    const messageBox = document.getElementById('message-box');
-    if (messageBox) {
-        messageBox.style.display = 'none';
+    // Clear all notifications from stack
+    notificationStack.forEach(notification => {
+        removeNotificationFromDOM(notification.id);
+    });
+    notificationStack = [];
+    
+    // Clear the container
+    const container = document.getElementById('notification-container');
+    if (container) {
+        container.innerHTML = '';
     }
-    isShowingMessage = false;
 };
 
 // Enhanced session storage hook with better error handling and validation

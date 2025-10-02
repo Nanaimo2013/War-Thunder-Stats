@@ -1,17 +1,18 @@
 import React, { useState, useCallback } from 'react';
-import { FileText, Trash2, Edit2, Save, XCircle, Eye, Copy, ArrowUp, ArrowDown } from 'lucide-react';
+import { FileText, Trash2, Edit2, Save, XCircle, Eye, ArrowUp, ArrowDown, Calendar, Hash, Map, BadgeCheck, Swords, Plane, Car } from 'lucide-react';
 import { showMessage } from '../utils/helpers';
+import ItemTypeIcon from './ItemTypeIcon';
+import BattlePreviewOverlay from './BattlePreviewOverlay';
 
-const formatDate = (dateStr) => {
-    if (!dateStr) return 'N/A';
+const formatDateParts = (dateStr) => {
+    if (!dateStr) return { date: 'N/A', time: '' };
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) {
-        return 'Invalid Date';
+        return { date: 'Invalid Date', time: '' };
     }
-    return d.toLocaleString(undefined, {
-        year: 'numeric', month: 'short', day: 'numeric',
-        hour: '2-digit', minute: '2-digit', hour12: false
-    });
+    const date = d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    const time = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
+    return { date, time };
 };
 
 const BattleLogsPage = ({ users, setUsers, selectedUserId, setSelectedUserId }) => {
@@ -20,11 +21,13 @@ const BattleLogsPage = ({ users, setUsers, selectedUserId, setSelectedUserId }) 
     const [showEditModal, setShowEditModal] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
     const [deleteIndex, setDeleteIndex] = useState(null);
-    const [showRawModal, setShowRawModal] = useState(false);
-    const [rawModalContent, setRawModalContent] = useState('');
     const [sortColumn, setSortColumn] = useState('timestamp');
     const [sortDirection, setSortDirection] = useState('desc');
-    const [killsSortType, setKillsSortType] = useState('total'); // 'total', 'air', 'ground'
+    const [killsSortType, setKillsSortType] = useState('total');
+    const [overlayOpen, setOverlayOpen] = useState(false);
+    const [overlayBattle, setOverlayBattle] = useState(null);
+    const [overlayIndex, setOverlayIndex] = useState(null);
+    const [overlayMode, setOverlayMode] = useState('view'); // 'view' | 'edit'
 
     const currentUser = users.find(u => u.id === selectedUserId);
     const battles = currentUser?.battles || [];
@@ -115,32 +118,6 @@ const BattleLogsPage = ({ users, setUsers, selectedUserId, setSelectedUserId }) 
         setDeleteIndex(null);
     }, []);
 
-    const handleShowRaw = useCallback((idx) => {
-        const dataToShow = idx === editingIndex && showEditModal ? editingBattleData : battles[idx];
-        setRawModalContent(JSON.stringify(dataToShow, null, 2));
-        setShowRawModal(true);
-    }, [battles, editingBattleData, editingIndex, showEditModal]);
-
-    const closeRawModal = useCallback(() => {
-        setShowRawModal(false);
-        setRawModalContent('');
-    }, []);
-
-    const copyRawData = useCallback(() => {
-        try {
-            const textarea = document.createElement('textarea');
-            textarea.value = rawModalContent;
-            document.body.appendChild(textarea);
-            textarea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textarea);
-            showMessage('Raw data copied to clipboard!', 'success');
-        } catch (err) {
-            console.error('Failed to copy text: ', err);
-            showMessage('Failed to copy raw data.', 'error');
-        }
-    }, [rawModalContent]);
-
     const handleSort = useCallback((column) => {
         if (sortColumn === column) {
             setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -176,9 +153,22 @@ const BattleLogsPage = ({ users, setUsers, selectedUserId, setSelectedUserId }) 
                 valA = getKillsValue(a);
                 valB = getKillsValue(b);
                 break;
-            case '#':
-                valA = a.id || a.timestamp || 0;
-                valB = b.id || b.timestamp || 0;
+            case 'result':
+                const order = { 'Victory': 2, 'Defeat': 1, 'Unknown': 0 };
+                valA = order[a.result] ?? 0;
+                valB = order[b.result] ?? 0;
+                break;
+            case 'sl':
+                valA = a.earnedSL || 0;
+                valB = b.earnedSL || 0;
+                break;
+            case 'rp':
+                valA = a.totalRP || 0;
+                valB = b.totalRP || 0;
+                break;
+            case 'crp':
+                valA = a.earnedCRP || 0;
+                valB = b.earnedCRP || 0;
                 break;
             default:
                 return 0;
@@ -192,8 +182,35 @@ const BattleLogsPage = ({ users, setUsers, selectedUserId, setSelectedUserId }) 
         return 0;
     });
 
+    const handleShowPreview = useCallback((battle, index = null) => {
+        setOverlayMode('view');
+        setOverlayIndex(index);
+        setOverlayBattle(battle);
+        setOverlayOpen(true);
+    }, []);
+
+    const handleCloseOverlay = useCallback(() => {
+        setOverlayOpen(false);
+        setOverlayBattle(null);
+        setOverlayIndex(null);
+        setOverlayMode('view');
+    }, []);
+
+    const handleOverlaySave = useCallback((updatedBattle) => {
+        if (overlayIndex == null) return;
+        // update the specific battle at overlayIndex for selected user
+        setUsers(prev => prev.map(u => {
+            if (u.id !== selectedUserId) return u;
+            const newBattles = [...(u.battles || [])];
+            newBattles[overlayIndex] = { ...newBattles[overlayIndex], ...updatedBattle };
+            return { ...u, battles: newBattles };
+        }));
+        showMessage('Battle updated successfully.', 'success');
+        handleCloseOverlay();
+    }, [overlayIndex, selectedUserId, setUsers, handleCloseOverlay]);
+
     return (
-        <div className="w-full max-w-6xl bg-gray-800 p-8 rounded-xl shadow-lg mb-8 text-gray-100 border-2 border-gray-700 animate-fade-in mx-auto">
+        <div className="w-full max-w-7xl bg-gray-800 p-8 rounded-xl shadow-lg mb-8 text-gray-100 border-2 border-gray-700 animate-fade-in mx-auto">
             <h2 className="text-3xl font-bold text-yellow-400 mb-6 flex items-center space-x-2">
                 <FileText size={28} className="text-yellow-500" /> <span className="drop-shadow-md">Battle Logs</span>
             </h2>
@@ -235,7 +252,7 @@ const BattleLogsPage = ({ users, setUsers, selectedUserId, setSelectedUserId }) 
                 </div>
             )}
             {showEditModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+                <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[60] p-4">
                     <div className="bg-gray-800 p-8 rounded-xl shadow-xl border border-gray-600 w-11/12 md:w-3/4 lg:w-1/2 max-h-[90vh] flex flex-col animate-scale-in">
                         <h3 className="text-2xl font-bold text-yellow-400 mb-6 flex items-center space-x-2">
                             <Edit2 size={24} className="text-yellow-500" /> <span className="drop-shadow-md">Edit Battle Log</span>
@@ -419,40 +436,17 @@ const BattleLogsPage = ({ users, setUsers, selectedUserId, setSelectedUserId }) 
                                 <XCircle size={18} /> <span>Cancel</span>
                             </button>
                             <button
-                                onClick={() => handleShowRaw(editingIndex)}
+                                onClick={() => handleShowPreview(battles[editingIndex])}
                                 className="bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition duration-300 transform hover:scale-105 flex items-center space-x-2 shadow-md"
                             >
-                                <Eye size={18} /> <span>View Raw Data</span>
+                                <Eye size={18} /> <span>View Preview</span>
                             </button>
                         </div>
                     </div>
                 </div>
             )}
-            {showRawModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
-                    <div className="bg-gray-800 p-6 rounded-xl shadow-xl border border-gray-600 w-11/12 md:w-3/4 lg:w-1/2 max-h-[90vh] flex flex-col animate-scale-in">
-                        <h3 className="text-2xl font-bold text-yellow-400 mb-4 flex items-center space-x-2">
-                            <Eye size={24} className="text-yellow-500" /> <span className="drop-shadow-md">Raw Battle Data (JSON)</span>
-                        </h3>
-                        <pre className="bg-gray-900 text-gray-200 p-4 rounded-md overflow-auto flex-grow text-sm custom-scrollbar mb-4 border border-gray-700">
-                            <code>{rawModalContent}</code>
-                        </pre>
-                        <div className="flex justify-end gap-3 mt-auto">
-                            <button
-                                onClick={copyRawData}
-                                className="px-6 py-2 bg-purple-700 text-white rounded-xl hover:bg-purple-800 transition duration-300 transform hover:scale-105 flex items-center space-x-2 shadow-md"
-                            >
-                                <Copy size={18} /> <span>Copy</span>
-                            </button>
-                            <button
-                                onClick={closeRawModal}
-                                className="px-6 py-2 bg-red-700 text-white rounded-xl hover:bg-red-800 transition duration-300 transform hover:scale-105 shadow-md"
-                            >
-                                Close
-                            </button>
-                        </div>
-                    </div>
-                </div>
+            {overlayOpen && overlayBattle && (
+                <BattlePreviewOverlay isOpen={overlayOpen} battle={overlayBattle} onClose={handleCloseOverlay} mode={overlayMode} onSave={handleOverlaySave} />
             )}
             {currentUser && battles.length > 0 ? (
                 <div className="flex items-center justify-between mb-4">
@@ -478,116 +472,171 @@ const BattleLogsPage = ({ users, setUsers, selectedUserId, setSelectedUserId }) 
                 </p>
             )}
             <div className="overflow-x-auto rounded-lg border border-gray-700 shadow-lg mt-4">
-                <table className="w-full text-sm text-gray-200">
+                <table className="w-full text-sm text-gray-200 table-fixed">
+                    <colgroup>
+                        <col style={{ width: '56px' }} />
+                        <col style={{ width: '150px' }} />
+                        <col />
+                        <col style={{ width: '130px' }} />
+                        <col style={{ width: '120px' }} />
+                        <col style={{ width: '150px' }} />
+                        <col style={{ width: '150px' }} />
+                        <col style={{ width: '150px' }} />
+                        <col style={{ width: '140px' }} />
+                    </colgroup>
                     <thead className="text-yellow-300 bg-gray-700 uppercase shadow-md">
                         <tr className="text-lg font-extrabold">
-                            <th className="text-left py-3 px-4 align-bottom">#</th>
+                            <th scope="col" className="text-center py-3 px-2 align-bottom w-12" aria-sort="none" title="Row index">
+                                <div className="flex items-center justify-center gap-1"><Hash size={16} aria-hidden="true" /></div>
+                            </th>
                             <th
-                                className="text-left py-3 px-4 cursor-pointer hover:bg-gray-600 transition-colors duration-200 flex items-center justify-between align-bottom"
+                                scope="col"
+                                className="text-left py-3 px-4 cursor-pointer hover:bg-gray-600 transition-colors duration-200"
                                 onClick={() => handleSort('timestamp')}
                             >
-                                <div className="flex items-center">
-                                    Date
+                                <div className="flex items-center gap-2">
+                                    <Calendar size={16} /> <span>Date</span>
                                     {sortColumn === 'timestamp' && (
                                         <span className="ml-1 flex items-center">{sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />}</span>
                                     )}
                                 </div>
                             </th>
                             <th
-                                className="text-left py-3 px-4 cursor-pointer hover:bg-gray-600 transition-colors duration-200 flex items-center justify-between align-bottom"
+                                scope="col"
+                                className="text-left py-3 px-4 cursor-pointer hover:bg-gray-600 transition-colors duration-200"
                                 onClick={() => handleSort('missionName')}
                             >
-                                <div className="flex items-center">Mission
+                                <div className="flex items-center gap-2"><Map size={16} /> <span>Mission</span>
                                     {sortColumn === 'missionName' && (
                                         <span className="ml-1 flex items-center">{sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />}</span>
                                     )}
                                 </div>
                             </th>
+                            <th scope="col" className="text-center py-3 px-4 cursor-pointer hover:bg-gray-600 transition-colors duration-200" onClick={() => handleSort('result')}>
+                                <div className="flex items-center justify-center gap-2"><BadgeCheck size={16} /> <span>Result</span> {sortColumn==='result' && (<span className="ml-1 flex items-center">{sortDirection==='asc'?<ArrowUp size={16} />:<ArrowDown size={16} />}</span>)}</div>
+                            </th>
                             <th
-                                className="text-left py-3 px-4 cursor-pointer hover:bg-gray-600 transition-colors duration-200 flex items-center justify-between align-bottom"
+                                scope="col"
+                                className="text-center py-3 px-4 cursor-pointer hover:bg-gray-600 transition-colors duration-200"
                                 onClick={() => handleSort('kills')}
                             >
-                                <div className="flex flex-col items-start">
-                                    <span className="flex items-center">Kills
+                                <div className="flex flex-col items-center justify-center">
+                                    <div className="flex items-center gap-2">
+                                        <Swords size={16} /> <span>Kills</span>
                                         {sortColumn === 'kills' && (
                                             <span className="ml-1 flex items-center">{sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />}</span>
                                         )}
-                                    </span>
-                                    <span className="text-xs font-normal text-gray-400">{killsSortType === 'total' ? 'Total' : killsSortType === 'air' ? 'Aircraft' : 'Ground'}</span>
-                                </div>
-                            </th>
-                            <th className="text-left py-3 px-4 align-bottom">Raw Log Snippet</th>
-                            <th className="text-center py-1 px-4 align-bottom" colSpan="3">
-                                <div className="flex flex-col items-center">
-                                    <span className="mb-1">ACTIONS</span>
-                                    <div className="flex space-x-2 justify-center">
-                                        {/* Action icons will be rendered in the row below */}
                                     </div>
+                                    <span className="text-xs font-normal text-gray-300 mt-1">({killsSortType === 'total' ? 'Total' : killsSortType === 'air' ? 'Air' : 'Ground'})</span>
                                 </div>
                             </th>
+                            <th scope="col" className="text-left py-3 px-4 cursor-pointer hover:bg-gray-600 transition-colors duration-200" onClick={() => handleSort('sl')} title="Sort by Silver Lions">
+                                <div className="flex items-center justify-start gap-2"><ItemTypeIcon type="warpoints" size="xs" /> <span>SL</span> {sortColumn==='sl' && (sortDirection==='asc'?<ArrowUp size={16} />:<ArrowDown size={16} />)}</div>
+                            </th>
+                            <th scope="col" className="text-left py-3 px-4 cursor-pointer hover:bg-gray-600 transition-colors duration-200" onClick={() => handleSort('rp')} title="Sort by Research Points">
+                                <div className="flex items-center justify-start gap-2"><ItemTypeIcon type="rp" size="xs" /> <span>RP</span> {sortColumn==='rp' && (sortDirection==='asc'?<ArrowUp size={16} />:<ArrowDown size={16} />)}</div>
+                            </th>
+                            <th scope="col" className="text-left py-3 px-4 cursor-pointer hover:bg-gray-600 transition-colors duration-200" onClick={() => handleSort('crp')} title="Sort by Convertible RP">
+                                <div className="flex items-center justify-start gap-2"><ItemTypeIcon type="crp" size="xs" /> <span>CRP</span> {sortColumn==='crp' && (sortDirection==='asc'?<ArrowUp size={16} />:<ArrowDown size={16} />)}</div>
+                            </th>
+                            <th scope="col" className="text-center py-3 px-4"><div className="flex items-center justify-center gap-2"><Eye size={16} /> <span>Actions</span></div></th>
                         </tr>
                     </thead>
-                    <tbody>
-                        {sortedBattles.map((battle, idx) => (
-                            <tr key={idx} className="border-b border-gray-700 hover:bg-gray-800 transition-colors duration-200">
-                                <td className="py-3 px-4">{idx + 1}</td>
-                                <td className="py-3 px-4">{formatDate(battle.timestamp)}</td>
-                                <td className="py-3 px-4">{battle.missionName || 'N/A'}</td>
-                                <td className="py-3 px-4 text-center">{getKillsValue(battle)}</td>
-                                <td className="py-3 px-4 max-w-xs truncate" title={battle.rawText || ''}>
-                                    <span className="block w-full overflow-hidden text-ellipsis whitespace-nowrap">
-                                        {(battle.rawText || '').slice(0, 60)}{(battle.rawText || '').length > 60 ? '...' : ''}
-                                    </span>
-                                </td>
-                                <td className="py-3 px-4 flex items-center space-x-2 justify-center">
-                                    <button onClick={() => handleEdit(idx)} className="text-blue-400 hover:text-blue-600 transition-colors duration-200" title="Edit">
-                                        <Edit2 size={20} />
-                                    </button>
-                                    <button onClick={() => handleDelete(idx)} className="text-red-400 hover:text-red-600 transition-colors duration-200" title="Delete">
-                                        <Trash2 size={20} />
-                                    </button>
-                                    <button onClick={() => handleShowRaw(idx)} className="text-yellow-400 hover:text-yellow-600 transition-colors duration-200" title="View Raw Data">
-                                        <Eye size={20} />
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
+                    <tbody className="bg-gray-800 divide-y divide-gray-700">
+                        {sortedBattles.map((battle, index) => {
+                            const { date, time } = formatDateParts(battle.timestamp);
+                            return (
+                                <tr key={index} className="hover:bg-gray-700 transition-colors duration-150">
+                                    <td className="text-center py-4 px-2 font-mono text-gray-400">
+                                        {index + 1}
+                                    </td>
+                                    <td className="py-4 px-4 whitespace-nowrap">
+                                        <div className="text-base text-white font-semibold">{date}</div>
+                                        <div className="text-xs text-gray-400">{time}</div>
+                                    </td>
+                                    <td className="py-4 px-4">
+                                        <div className="flex items-center gap-2 font-semibold">
+                                            {((battle.killsAircraft||0) >= (battle.killsGround||0)) ? (
+                                                <Plane size={16} className="text-blue-300" aria-hidden="true" />
+                                            ) : (
+                                                <Car size={16} className="text-green-300" aria-hidden="true" />
+                                            )}
+                                            <span>{battle.missionName}</span>
+                                        </div>
+                                        <div className="text-gray-400 text-xs">{battle.missionType}</div>
+                                    </td>
+                                    <td className="text-center py-4 px-4">
+                                        <span className={`py-1 px-3 rounded-full text-xs font-bold ${
+                                            battle.result === 'Victory' ? 'bg-green-600 text-white' :
+                                            battle.result === 'Defeat' ? 'bg-red-600 text-white' :
+                                            'bg-gray-600 text-white'
+                                        }`}>
+                                            {battle.result}
+                                        </span>
+                                    </td>
+                                    <td className="text-center py-4 px-4">
+                                        <div className="flex items-center justify-center gap-2 text-white text-lg whitespace-nowrap">
+                                            <Swords size={16} className="text-gray-300" aria-hidden="true" />
+                                            <span className="tabular-nums font-semibold">{getKillsValue(battle)}</span>
+                                        </div>
+                                        <div className="text-xs text-gray-400 whitespace-nowrap">
+                                            ({battle.killsAircraft || 0} air, {battle.killsGround || 0} ground)
+                                        </div>
+                                    </td>
+                                    <td className="text-left py-4 px-4">
+                                        <div className="inline-flex items-center gap-2">
+                                            <ItemTypeIcon type="warpoints" size="xs" />
+                                            <span className="font-mono tabular-nums text-base">{battle.earnedSL ? battle.earnedSL.toLocaleString() : 'N/A'}</span>
+                                        </div>
+                                    </td>
+                                    <td className="text-left py-4 px-4">
+                                        <div className="inline-flex items-center gap-2">
+                                            <ItemTypeIcon type="rp" size="xs" />
+                                            <span className="font-mono tabular-nums text-base">{battle.totalRP ? battle.totalRP.toLocaleString() : 'N/A'}</span>
+                                        </div>
+                                    </td>
+                                    <td className="text-left py-4 px-4">
+                                        <div className="inline-flex items-center gap-2">
+                                            <ItemTypeIcon type="crp" size="xs" />
+                                            <span className="font-mono tabular-nums text-base">{battle.earnedCRP ? battle.earnedCRP.toLocaleString() : 'N/A'}</span>
+                                        </div>
+                                    </td>
+                                    <td className="py-4 px-4 text-right whitespace-nowrap">
+                                        <div className="flex items-center justify-end space-x-2">
+                                            <button
+                                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleShowPreview(battle, index); }}
+                                                className="p-2 text-blue-400 hover:text-blue-200 transition-colors duration-200 rounded-full hover:bg-gray-600"
+                                                title="View Battle Preview"
+                                            >
+                                                <Eye size={20} />
+                                            </button>
+                                            <button
+                                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOverlayMode('edit'); setOverlayIndex(index); setOverlayBattle(battle); setOverlayOpen(true); }}
+                                                className="p-2 text-yellow-400 hover:text-yellow-200 transition-colors duration-200 rounded-full hover:bg-gray-600"
+                                                title="Edit Battle Log"
+                                            >
+                                                <Edit2 size={20} />
+                                            </button>
+                                            <button
+                                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(index); }}
+                                                className="p-2 text-red-400 hover:text-red-200 transition-colors duration-200 rounded-full hover:bg-gray-600"
+                                                title="Delete Battle Log"
+                                            >
+                                                <Trash2 size={20} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>
-            <style jsx>{`
-                .custom-scrollbar::-webkit-scrollbar {
-                    width: 8px;
-                    height: 8px;
-                }
-                .custom-scrollbar::-webkit-scrollbar-track {
-                    background: #374151;
-                    border-radius: 10px;
-                }
-                .custom-scrollbar::-webkit-scrollbar-thumb {
-                    background: #a78b4f;
-                    border-radius: 10px;
-                }
-                .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-                    background: #d97706;
-                }
-                @keyframes fadeIn {
-                    from { opacity: 0; }
-                    to { opacity: 1; }
-                }
-                @keyframes scaleIn {
-                    from { transform: scale(0.9); opacity: 0; }
-                    to { transform: scale(1); opacity: 1; }
-                }
-                .animate-fade-in {
-                    animation: fadeIn 0.5s ease-out forwards;
-                }
-                .animate-scale-in {
-                    animation: scaleIn 0.3s ease-out forwards;
-                }
-            `}</style>
+            {battles.length === 0 && selectedUserId && (
+                <div className="text-center text-gray-400 p-4 mt-4 bg-gray-700 rounded-lg">No battle logs found for this user.</div>
+            )}
         </div>
     );
 };
 
-export default BattleLogsPage; 
+export default BattleLogsPage;
