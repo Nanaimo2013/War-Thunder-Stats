@@ -1,642 +1,757 @@
-import React, { useState, useCallback } from 'react';
-import { FileText, Trash2, Edit2, Save, XCircle, Eye, ArrowUp, ArrowDown, Calendar, Hash, Map, BadgeCheck, Swords, Plane, Car } from 'lucide-react';
-import { showMessage } from '../utils/helpers';
+/**
+ * BattleLogsPage.js
+ *
+ * v3.0 — Full redesign.
+ * - WTTheme styling consistent with StatsPage
+ * - Load-more pattern (20 at a time, auto-load on scroll)
+ * - Dual dates: battleTimestamp (when it happened) + parsedAt (when uploaded)
+ * - Working filters: result, search, mission type, date range, sort
+ * - Card layout with full-width use of the page
+ * - Icons for SL/RP/CRP from assetManager
+ */
+
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import {
+  FileText, Trash2, Edit2, Eye, ArrowUp, ArrowDown,
+  Calendar, Hash, Map, Swords, Plane, Search, X,
+  ChevronDown, Filter, Clock, CheckCircle, XCircle,
+  AlertTriangle, Target, Shield, Activity, TrendingUp,
+  BarChart2, Users, RefreshCw,
+} from 'lucide-react';
+import { notify } from '../utils/notifications';
+import { StyleInjector, ResultBadge, SectionHeader, EmptyState, fmt, fmtK } from '../styles/wtTheme';
+import { usePagination, WTLoadMoreTrigger, WTLoadMoreButton, LazySection, WTSkeletonList } from '../utils/loading';
 import ItemTypeIcon from './ItemTypeIcon';
 import BattlePreviewOverlay from './BattlePreviewOverlay';
 
-const formatDateParts = (dateStr) => {
-    if (!dateStr) return { date: 'N/A', time: '' };
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) {
-        return { date: 'Invalid Date', time: '' };
-    }
-    const date = d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-    const time = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
-    return { date, time };
+const PAGE_SIZE = 20;
+
+// ─── Date helpers ─────────────────────────────────────────────────────────────
+
+/**
+ * Returns the "battle happened" date from a battle object.
+ * Prefers battleTimestamp, falls back to timestamp (legacy), then parsedAt.
+ */
+function getBattleDate(battle) {
+  const raw = battle.battleTimestamp || battle.timestamp || null;
+  if (raw) {
+    const d = new Date(raw);
+    if (!isNaN(d.getTime())) return d;
+  }
+  return null;
+}
+
+function getUploadDate(battle) {
+  const raw = battle.parsedAt || null;
+  if (raw) {
+    const d = new Date(raw);
+    if (!isNaN(d.getTime())) return d;
+  }
+  return null;
+}
+
+function fmtDate(d, opts = {}) {
+  if (!d) return 'Unknown';
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', ...opts });
+}
+
+function fmtDateTime(d) {
+  if (!d) return null;
+  return {
+    date: d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }),
+    time: d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false }),
+    relative: relativeTime(d),
+  };
+}
+
+function relativeTime(d) {
+  const diff = Date.now() - d.getTime();
+  const min  = Math.floor(diff / 60000);
+  const hr   = Math.floor(diff / 3600000);
+  const day  = Math.floor(diff / 86400000);
+  if (min < 1)    return 'just now';
+  if (min < 60)   return `${min}m ago`;
+  if (hr  < 24)   return `${hr}h ago`;
+  if (day < 7)    return `${day}d ago`;
+  if (day < 365)  return `${Math.floor(day/7)}w ago`;
+  return `${Math.floor(day/365)}y ago`;
+}
+
+// ─── Battle card ──────────────────────────────────────────────────────────────
+
+const BattleCard = React.memo(({ battle, index, onView, onEdit, onDelete }) => {
+  const battleDate = getBattleDate(battle);
+  const uploadDate = getUploadDate(battle);
+  const bdFmt = fmtDateTime(battleDate);
+  const udFmt = fmtDateTime(uploadDate);
+
+  const resultCls = battle.result === 'Victory' ? 'victory' : battle.result === 'Defeat' ? 'defeat' : 'unknown';
+  const totalKills = (battle.killsAircraft || 0) + (battle.killsGround || 0);
+
+  return (
+    <LazySection>
+      <div
+        className={`wt-battle-card ${resultCls}`}
+        style={{ animation: `wt-fade-in 0.3s ease ${Math.min(index,10) * 0.03}s both` }}
+      >
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 0 }}>
+          {/* ── Left: result + mission ── */}
+          <div style={{ flex: '1 1 220px', padding: '14px 16px', borderRight: '1px solid rgba(255,255,255,0.04)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <ResultBadge result={battle.result || 'Unknown'} />
+              <span style={{ fontFamily: "'Share Tech Mono'", fontSize: 11, color: '#475569' }}>
+                #{index + 1}
+              </span>
+            </div>
+
+            <div style={{ fontFamily: "'Rajdhani'", fontWeight: 700, fontSize: 16, color: '#e2e8f0', marginBottom: 3, lineHeight: 1.2 }}>
+              {battle.missionName || 'Unknown Mission'}
+            </div>
+
+            {battle.missionType && (
+              <div style={{ fontSize: 11, color: '#475569', fontFamily: "'Share Tech Mono'", marginBottom: 8 }}>
+                [{battle.missionType}]
+              </div>
+            )}
+
+            {/* Battle date */}
+            {bdFmt ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                  <Calendar size={11} style={{ color: '#f59e0b', flexShrink: 0 }} />
+                  <span style={{ color: '#e2e8f0', fontFamily: "'Exo 2'", fontWeight: 600 }}>
+                    {bdFmt.date}
+                  </span>
+                  <span style={{ color: '#64748b' }}>{bdFmt.time}</span>
+                </div>
+                <div style={{ fontSize: 11, color: '#475569', paddingLeft: 17, fontFamily: "'Share Tech Mono'" }}>
+                  {bdFmt.relative}
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#475569' }}>
+                <Calendar size={11} />
+                <span style={{ fontFamily: "'Exo 2'" }}>Date not set</span>
+              </div>
+            )}
+
+            {/* Upload date (smaller) */}
+            {udFmt && (
+              <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#334155' }}>
+                <Clock size={10} />
+                <span style={{ fontFamily: "'Exo 2'" }}>Logged {udFmt.relative}</span>
+              </div>
+            )}
+          </div>
+
+          {/* ── Middle: combat stats ── */}
+          <div style={{ flex: '1 1 180px', padding: '14px 16px', borderRight: '1px solid rgba(255,255,255,0.04)' }}>
+            <div style={{ fontFamily: "'Rajdhani'", fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#64748b', marginBottom: 10 }}>
+              Combat
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {[
+                { icon: <Target size={12} style={{ color: '#ef4444' }} />, label: 'Ground', val: battle.killsGround || 0, color: '#ef4444' },
+                { icon: <Plane size={12} style={{ color: '#3b82f6' }} />, label: 'Air',    val: battle.killsAircraft || 0, color: '#3b82f6' },
+                { icon: <Shield size={12} style={{ color: '#22c55e' }} />, label: 'Assists', val: battle.assists || 0, color: '#22c55e' },
+              ].map(({ icon, label, val, color }) => (
+                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {icon}
+                  <span style={{ fontSize: 11, color: '#64748b', fontFamily: "'Exo 2'", flex: 1 }}>{label}</span>
+                  <span style={{ fontFamily: "'Share Tech Mono'", fontSize: 14, color, fontWeight: 700 }}>{val}</span>
+                </div>
+              ))}
+
+              {/* Kills bar */}
+              {totalKills > 0 && (
+                <div style={{ marginTop: 4 }}>
+                  <div style={{ display: 'flex', gap: 3, height: 5, borderRadius: 3, overflow: 'hidden', background: 'rgba(255,255,255,0.06)' }}>
+                    {battle.killsGround > 0 && (
+                      <div style={{ flex: battle.killsGround, background: '#ef4444', borderRadius: 3, transition: 'flex 0.4s ease' }} />
+                    )}
+                    {battle.killsAircraft > 0 && (
+                      <div style={{ flex: battle.killsAircraft, background: '#3b82f6', borderRadius: 3, transition: 'flex 0.4s ease' }} />
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Right: economy ── */}
+          <div style={{ flex: '1 1 180px', padding: '14px 16px' }}>
+            <div style={{ fontFamily: "'Rajdhani'", fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#64748b', marginBottom: 10 }}>
+              Economy
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              {[
+                { type: 'warpoints', val: battle.earnedSL || 0, color: '#f59e0b', label: 'SL' },
+                { type: 'rp',        val: battle.totalRP  || 0, color: '#a855f7', label: 'RP' },
+                { type: 'crp',       val: battle.earnedCRP|| 0, color: '#7c3aed', label: 'CRP' },
+              ].filter(r => r.val > 0 || r.label === 'SL').map(({ type, val, color, label }) => (
+                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <ItemTypeIcon type={type} size="xs" />
+                  <span style={{ fontSize: 11, color: '#64748b', fontFamily: "'Exo 2'", flex: 1 }}>{label}</span>
+                  <span style={{ fontFamily: "'Share Tech Mono'", fontSize: 13, color, fontWeight: 700 }}>
+                    {fmtK(val)}
+                  </span>
+                </div>
+              ))}
+
+              {(battle.activity > 0) && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                  <Activity size={12} style={{ color: '#22c55e' }} />
+                  <span style={{ fontSize: 11, color: '#64748b', fontFamily: "'Exo 2'", flex: 1 }}>Activity</span>
+                  <span style={{ fontFamily: "'Share Tech Mono'", fontSize: 13, color: '#22c55e', fontWeight: 700 }}>
+                    {battle.activity}%
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Action bar ── */}
+        <div style={{
+          borderTop: '1px solid rgba(255,255,255,0.04)',
+          padding: '8px 12px',
+          display: 'flex',
+          justifyContent: 'flex-end',
+          gap: 4,
+          background: 'rgba(0,0,0,0.1)',
+        }}>
+          <button className="wt-btn-icon info" onClick={() => onView(battle)} title="View details">
+            <Eye size={15} />
+          </button>
+          <button className="wt-btn-icon" onClick={() => onEdit(battle)} title="Edit">
+            <Edit2 size={15} />
+          </button>
+          <button className="wt-btn-icon danger" onClick={() => onDelete()} title="Delete">
+            <Trash2 size={15} />
+          </button>
+        </div>
+      </div>
+    </LazySection>
+  );
+});
+
+// ─── Filters panel ────────────────────────────────────────────────────────────
+
+const FiltersPanel = React.memo(({ filters, onChange, missionTypes, onReset }) => {
+  return (
+    <div className="wt-filter-bar">
+      {/* Search */}
+      <div style={{ position: 'relative', flex: '1 1 200px' }}>
+        <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#475569' }} />
+        <input
+          className="wt-input"
+          value={filters.search}
+          onChange={e => onChange('search', e.target.value)}
+          placeholder="Search mission name..."
+          style={{ paddingLeft: 32, paddingTop: 7, paddingBottom: 7, fontSize: 13 }}
+        />
+        {filters.search && (
+          <button
+            style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#475569', padding: 2 }}
+            onClick={() => onChange('search', '')}
+          >
+            <X size={12} />
+          </button>
+        )}
+      </div>
+
+      {/* Result filter */}
+      <div style={{ display: 'flex', gap: 4 }}>
+        {['All', 'Victory', 'Defeat', 'Unknown'].map(r => (
+          <button
+            key={r}
+            className={`wt-filter-pill ${filters.result === r ? (r === 'Victory' ? 'active victory' : r === 'Defeat' ? 'active defeat' : 'active') : ''}`}
+            onClick={() => onChange('result', r)}
+          >
+            {r === 'Victory' ? '✓' : r === 'Defeat' ? '✗' : r === 'Unknown' ? '?' : '▤'} {r}
+          </button>
+        ))}
+      </div>
+
+      {/* Mission type */}
+      {missionTypes.length > 0 && (
+        <select
+          className="wt-select"
+          value={filters.missionType}
+          onChange={e => onChange('missionType', e.target.value)}
+          style={{ flex: '0 0 auto', width: 'auto', minWidth: 160, paddingTop: 7, paddingBottom: 7 }}
+        >
+          <option value="">All Mission Types</option>
+          {missionTypes.map(t => <option key={t} value={t}>{t}</option>)}
+        </select>
+      )}
+
+      {/* Date range */}
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flex: '0 0 auto' }}>
+        <input
+          type="date"
+          className="wt-input"
+          value={filters.dateFrom}
+          onChange={e => onChange('dateFrom', e.target.value)}
+          style={{ width: 140, paddingTop: 7, paddingBottom: 7 }}
+          title="Battle date from"
+        />
+        <span style={{ color: '#475569', fontSize: 11 }}>→</span>
+        <input
+          type="date"
+          className="wt-input"
+          value={filters.dateTo}
+          onChange={e => onChange('dateTo', e.target.value)}
+          style={{ width: 140, paddingTop: 7, paddingBottom: 7 }}
+          title="Battle date to"
+        />
+      </div>
+
+      {/* Reset */}
+      <button className="wt-btn-icon" onClick={onReset} title="Reset filters">
+        <RefreshCw size={14} />
+      </button>
+    </div>
+  );
+});
+
+// ─── Sort bar ─────────────────────────────────────────────────────────────────
+
+const SortBar = React.memo(({ sortColumn, sortDir, onSort }) => {
+  const options = [
+    { id: 'battleDate', label: 'Battle Date', icon: Calendar },
+    { id: 'result',     label: 'Result',      icon: CheckCircle },
+    { id: 'kills',      label: 'Kills',       icon: Target },
+    { id: 'sl',         label: 'SL',          icon: null },
+    { id: 'rp',         label: 'RP',          icon: null },
+    { id: 'activity',   label: 'Activity',    icon: Activity },
+    { id: 'parsedAt',   label: 'Upload Date', icon: Clock },
+  ];
+
+  return (
+    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
+      <span style={{ fontSize: 11, color: '#475569', fontFamily: "'Rajdhani'", fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginRight: 4 }}>
+        Sort:
+      </span>
+      {options.map(({ id, label, icon: Icon }) => {
+        const active = sortColumn === id;
+        return (
+          <button
+            key={id}
+            onClick={() => onSort(id)}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              padding: '4px 10px', borderRadius: 4,
+              fontFamily: "'Rajdhani'", fontWeight: 600, fontSize: 11,
+              letterSpacing: '0.05em', textTransform: 'uppercase',
+              cursor: 'pointer',
+              background: active ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.03)',
+              border: `1px solid ${active ? 'rgba(245,158,11,0.4)' : 'rgba(255,255,255,0.07)'}`,
+              color: active ? '#f59e0b' : '#64748b',
+              transition: 'all 0.18s ease',
+            }}
+          >
+            {Icon && <Icon size={10} />}
+            {label}
+            {active && (sortDir === 'asc' ? <ArrowUp size={10} /> : <ArrowDown size={10} />)}
+          </button>
+        );
+      })}
+    </div>
+  );
+});
+
+// ─── Delete confirm modal ─────────────────────────────────────────────────────
+
+const DeleteConfirm = ({ onConfirm, onCancel }) => (
+  <div className="wt-modal-overlay">
+    <div className="wt-modal" style={{ maxWidth: 420, textAlign: 'center' }}>
+      <div style={{ fontSize: 40, marginBottom: 12 }}>🗑️</div>
+      <h3 className="wt-display" style={{ fontSize: 20, color: '#e2e8f0', marginBottom: 8 }}>Delete Battle Log?</h3>
+      <p style={{ fontSize: 13, color: '#64748b', fontFamily: "'Exo 2'", marginBottom: 24, lineHeight: 1.5 }}>
+        This action cannot be undone. The battle log will be permanently removed.
+      </p>
+      <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+        <button className="wt-btn wt-btn-danger" onClick={onConfirm} style={{ minWidth: 100 }}>Delete</button>
+        <button className="wt-btn wt-btn-ghost" onClick={onCancel} style={{ minWidth: 100 }}>Cancel</button>
+      </div>
+    </div>
+  </div>
+);
+
+// ─── Stats bar ────────────────────────────────────────────────────────────────
+
+const StatsBar = React.memo(({ battles }) => {
+  const wins   = battles.filter(b => b.result === 'Victory').length;
+  const losses = battles.filter(b => b.result === 'Defeat').length;
+  const wr     = battles.length > 0 ? (wins / battles.length * 100).toFixed(1) : '0';
+  const totalSL = battles.reduce((s, b) => s + (b.earnedSL || 0), 0);
+  const totalRP = battles.reduce((s, b) => s + (b.totalRP || 0), 0);
+  const totalKills = battles.reduce((s, b) => s + (b.killsGround || 0) + (b.killsAircraft || 0), 0);
+
+  return (
+    <div style={{
+      display: 'flex', flexWrap: 'wrap', gap: 12,
+      padding: '12px 18px',
+      background: 'rgba(245,158,11,0.03)',
+      border: '1px solid rgba(245,158,11,0.08)',
+      borderRadius: 8,
+      marginBottom: 16,
+    }}>
+      {[
+        { label: 'Showing', val: battles.length, color: '#f59e0b' },
+        { label: 'Win Rate', val: `${wr}%`, color: wins > losses ? '#22c55e' : '#ef4444' },
+        { label: 'Total Kills', val: fmtK(totalKills), color: '#ef4444' },
+        { label: 'Total SL', val: fmtK(totalSL), color: '#f59e0b' },
+        { label: 'Total RP', val: fmtK(totalRP), color: '#a855f7' },
+      ].map(({ label, val, color }) => (
+        <div key={label} style={{ display: 'flex', flex: '0 1 auto', alignItems: 'baseline', gap: 6 }}>
+          <span style={{ fontSize: 11, color: '#475569', fontFamily: "'Rajdhani'", fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</span>
+          <span style={{ fontFamily: "'Share Tech Mono'", fontSize: 15, color, fontWeight: 700 }}>{val}</span>
+        </div>
+      ))}
+    </div>
+  );
+});
+
+// ─── Main page ────────────────────────────────────────────────────────────────
+
+const INITIAL_FILTERS = {
+  search: '',
+  result: 'All',
+  missionType: '',
+  dateFrom: '',
+  dateTo: '',
 };
 
 const BattleLogsPage = ({ users, setUsers, selectedUserId, setSelectedUserId }) => {
-    const [editingIndex, setEditingIndex] = useState(null);
-    const [editingBattleData, setEditingBattleData] = useState({});
-    const [showEditModal, setShowEditModal] = useState(false);
-    const [showConfirm, setShowConfirm] = useState(false);
-    const [deleteIndex, setDeleteIndex] = useState(null);
-    const [sortColumn, setSortColumn] = useState('timestamp');
-    const [sortDirection, setSortDirection] = useState('desc');
-    const [killsSortType, setKillsSortType] = useState('total');
-    const [overlayOpen, setOverlayOpen] = useState(false);
-    const [overlayBattle, setOverlayBattle] = useState(null);
-    const [overlayIndex, setOverlayIndex] = useState(null);
-    const [overlayMode, setOverlayMode] = useState('view'); // 'view' | 'edit'
+  const [sortColumn, setSortColumn] = useState('battleDate');
+  const [sortDir,    setSortDir]    = useState('desc');
+  const [filters,    setFilters]    = useState(INITIAL_FILTERS);
+  const [confirmIdx, setConfirmIdx] = useState(null);
+  const [overlayOpen, setOverlayOpen] = useState(false);
+  const [overlayBattle, setOverlayBattle] = useState(null);
+  const [overlayMode, setOverlayMode] = useState('view');
+  const [overlayIndex, setOverlayIndex] = useState(null);
 
-    const currentUser = users.find(u => u.id === selectedUserId);
-    const battles = currentUser?.battles || [];
+  const currentUser = users.find(u => u.id === selectedUserId);
+  const battles = currentUser?.battles || [];
 
-    const handleEdit = useCallback((idx) => {
-        setEditingIndex(idx);
-        const battleToEdit = battles[idx];
-        setEditingBattleData({
-            result: battleToEdit.result || 'Unknown',
-            missionType: battleToEdit.missionType || '',
-            missionName: battleToEdit.missionName || '',
-            killsAircraft: battleToEdit.killsAircraft || 0,
-            killsGround: battleToEdit.killsGround || 0,
-            assists: battleToEdit.assists || 0,
-            severeDamage: battleToEdit.severeDamage || 0,
-            criticalDamage: battleToEdit.criticalDamage || 0,
-            damage: battleToEdit.damage || 0,
-            earnedSL: battleToEdit.earnedSL || 0,
-            earnedCRP: battleToEdit.earnedCRP || 0,
-            totalRP: battleToEdit.totalRP || 0,
-            activity: battleToEdit.activity || 0,
-            session: battleToEdit.session || '',
-            timestamp: battleToEdit.timestamp || '',
-            rawText: battleToEdit.rawText || ''
-        });
-        setShowEditModal(true);
-    }, [battles]);
+  // Unique mission types for filter dropdown
+  const missionTypes = useMemo(() =>
+    [...new Set(battles.map(b => b.missionType).filter(Boolean))].sort(),
+  [battles]);
 
-    const handleEditSave = useCallback(() => {
-        if (!editingBattleData.missionName.trim() || !editingBattleData.timestamp.trim()) {
-            showMessage('Mission name and timestamp cannot be empty.', 'error');
-            return;
+  // ── Filter + sort ─────────────────────────────────────────────────────────
+  const filtered = useMemo(() => {
+    let list = [...battles];
+
+    // Search
+    if (filters.search) {
+      const q = filters.search.toLowerCase();
+      list = list.filter(b =>
+        (b.missionName || '').toLowerCase().includes(q) ||
+        (b.missionType || '').toLowerCase().includes(q) ||
+        (b.session || '').toLowerCase().includes(q)
+      );
+    }
+
+    // Result
+    if (filters.result !== 'All') {
+      list = list.filter(b => (b.result || 'Unknown') === filters.result);
+    }
+
+    // Mission type
+    if (filters.missionType) {
+      list = list.filter(b => b.missionType === filters.missionType);
+    }
+
+    // Date range (battle date)
+    if (filters.dateFrom) {
+      const from = new Date(filters.dateFrom);
+      list = list.filter(b => {
+        const d = getBattleDate(b);
+        return d && d >= from;
+      });
+    }
+    if (filters.dateTo) {
+      const to = new Date(filters.dateTo);
+      to.setHours(23, 59, 59, 999);
+      list = list.filter(b => {
+        const d = getBattleDate(b);
+        return d && d <= to;
+      });
+    }
+
+    // Sort
+    list.sort((a, b) => {
+      let va, vb;
+      switch (sortColumn) {
+        case 'battleDate':
+          va = (getBattleDate(a) || new Date(0)).getTime();
+          vb = (getBattleDate(b) || new Date(0)).getTime();
+          break;
+        case 'parsedAt':
+          va = new Date(a.parsedAt || 0).getTime();
+          vb = new Date(b.parsedAt || 0).getTime();
+          break;
+        case 'result': {
+          const ord = { Victory: 2, Defeat: 1, Unknown: 0 };
+          va = ord[a.result] ?? 0;
+          vb = ord[b.result] ?? 0;
+          break;
         }
-        const updatedUsers = users.map(u => {
-            if (u.id !== selectedUserId) return u;
-            const newBattles = [...u.battles];
-            newBattles[editingIndex] = {
-                ...newBattles[editingIndex],
-                result: editingBattleData.result,
-                missionType: editingBattleData.missionType,
-                missionName: editingBattleData.missionName,
-                killsAircraft: parseInt(editingBattleData.killsAircraft, 10) || 0,
-                killsGround: parseInt(editingBattleData.killsGround, 10) || 0,
-                assists: parseInt(editingBattleData.assists, 10) || 0,
-                severeDamage: parseInt(editingBattleData.severeDamage, 10) || 0,
-                criticalDamage: parseInt(editingBattleData.criticalDamage, 10) || 0,
-                damage: parseInt(editingBattleData.damage, 10) || 0,
-                earnedSL: parseInt(editingBattleData.earnedSL, 10) || 0,
-                earnedCRP: parseInt(editingBattleData.earnedCRP, 10) || 0,
-                totalRP: parseInt(editingBattleData.totalRP, 10) || 0,
-                activity: parseFloat(editingBattleData.activity) || 0,
-                session: editingBattleData.session,
-                timestamp: editingBattleData.timestamp,
-                rawText: editingBattleData.rawText
-            };
-            return { ...u, battles: newBattles };
-        });
-        setUsers(updatedUsers);
-        showMessage('Battle log updated!', 'success');
-        handleEditCancel();
-    }, [editingBattleData, editingIndex, selectedUserId, setUsers, users]);
-
-    const handleEditCancel = useCallback(() => {
-        setEditingIndex(null);
-        setEditingBattleData({});
-        setShowEditModal(false);
-    }, []);
-
-    const handleDelete = useCallback((idx) => {
-        setShowConfirm(true);
-        setDeleteIndex(idx);
-    }, []);
-
-    const confirmDelete = useCallback(() => {
-        const updatedUsers = users.map(u => {
-            if (u.id !== selectedUserId) return u;
-            const newBattles = u.battles.filter((_, i) => i !== deleteIndex);
-            return { ...u, battles: newBattles };
-        });
-        setUsers(updatedUsers);
-        showMessage('Battle log deleted.', 'success');
-        setShowConfirm(false);
-        setDeleteIndex(null);
-    }, [deleteIndex, selectedUserId, setUsers, users]);
-
-    const cancelDelete = useCallback(() => {
-        setShowConfirm(false);
-        setDeleteIndex(null);
-    }, []);
-
-    const handleSort = useCallback((column) => {
-        if (sortColumn === column) {
-            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-        } else {
-            setSortColumn(column);
-            setSortDirection('asc');
-        }
-    }, [sortColumn, sortDirection]);
-
-    const handleKillsSortType = (type) => {
-        setKillsSortType(type);
-        setSortColumn('kills');
-    };
-
-    const getKillsValue = (battle) => {
-        if (killsSortType === 'air') return battle.killsAircraft || 0;
-        if (killsSortType === 'ground') return battle.killsGround || 0;
-        return (battle.killsAircraft || 0) + (battle.killsGround || 0);
-    };
-
-    const sortedBattles = [...battles].sort((a, b) => {
-        let valA, valB;
-        switch (sortColumn) {
-            case 'timestamp':
-                valA = new Date(a.timestamp || 0).getTime();
-                valB = new Date(b.timestamp || 0).getTime();
-                break;
-            case 'missionName':
-                valA = (a.missionName || '').toLowerCase();
-                valB = (b.missionName || '').toLowerCase();
-                break;
-            case 'kills':
-                valA = getKillsValue(a);
-                valB = getKillsValue(b);
-                break;
-            case 'result':
-                const order = { 'Victory': 2, 'Defeat': 1, 'Unknown': 0 };
-                valA = order[a.result] ?? 0;
-                valB = order[b.result] ?? 0;
-                break;
-            case 'sl':
-                valA = a.earnedSL || 0;
-                valB = b.earnedSL || 0;
-                break;
-            case 'rp':
-                valA = a.totalRP || 0;
-                valB = b.totalRP || 0;
-                break;
-            case 'crp':
-                valA = a.earnedCRP || 0;
-                valB = b.earnedCRP || 0;
-                break;
-            default:
-                return 0;
-        }
-        if (valA < valB) {
-            return sortDirection === 'asc' ? -1 : 1;
-        }
-        if (valA > valB) {
-            return sortDirection === 'asc' ? 1 : -1;
-        }
-        return 0;
+        case 'kills':
+          va = (a.killsGround || 0) + (a.killsAircraft || 0);
+          vb = (b.killsGround || 0) + (b.killsAircraft || 0);
+          break;
+        case 'sl':       va = a.earnedSL || 0;  vb = b.earnedSL || 0;  break;
+        case 'rp':       va = a.totalRP  || 0;  vb = b.totalRP  || 0;  break;
+        case 'activity': va = a.activity || 0;  vb = b.activity || 0;  break;
+        default:         return 0;
+      }
+      if (va < vb) return sortDir === 'asc' ? -1 : 1;
+      if (va > vb) return sortDir === 'asc' ? 1 : -1;
+      return 0;
     });
 
-    const handleShowPreview = useCallback((battle, index = null) => {
-        setOverlayMode('view');
-        setOverlayIndex(index);
-        setOverlayBattle(battle);
-        setOverlayOpen(true);
-    }, []);
+    return list;
+  }, [battles, filters, sortColumn, sortDir]);
 
-    const handleCloseOverlay = useCallback(() => {
-        setOverlayOpen(false);
-        setOverlayBattle(null);
-        setOverlayIndex(null);
-        setOverlayMode('view');
-    }, []);
+  // ── Pagination ─────────────────────────────────────────────────────────────
+  const { visible, hasMore, loadMore, total } = usePagination(filtered, PAGE_SIZE);
 
-    const handleOverlaySave = useCallback((updatedBattle) => {
-        if (overlayIndex == null) return;
-        // update the specific battle at overlayIndex for selected user
-        setUsers(prev => prev.map(u => {
-            if (u.id !== selectedUserId) return u;
-            const newBattles = [...(u.battles || [])];
-            newBattles[overlayIndex] = { ...newBattles[overlayIndex], ...updatedBattle };
-            return { ...u, battles: newBattles };
-        }));
-        showMessage('Battle updated successfully.', 'success');
-        handleCloseOverlay();
-    }, [overlayIndex, selectedUserId, setUsers, handleCloseOverlay]);
+  // ── Handlers ───────────────────────────────────────────────────────────────
 
-    return (
-        <div className="w-full max-w-7xl bg-gray-800 p-8 rounded-xl shadow-lg mb-8 text-gray-100 border-2 border-gray-700 animate-fade-in mx-auto">
-            <h2 className="text-3xl font-bold text-yellow-400 mb-6 flex items-center space-x-2">
-                <FileText size={28} className="text-yellow-500" /> <span className="drop-shadow-md">Battle Logs</span>
-            </h2>
-            <div className="mb-6">
-                <label htmlFor="user-select-logs" className="block text-gray-300 text-sm font-bold mb-2">
-                    Select User:
-                </label>
-                <select
-                    id="user-select-logs"
-                    value={selectedUserId}
-                    onChange={e => setSelectedUserId(e.target.value)}
-                    className="shadow appearance-none border border-gray-600 rounded-xl w-full py-2 px-3 bg-gray-900 text-gray-200 leading-tight focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition duration-300"
-                >
-                    <option value="">-- Select a user --</option>
-                    {users.map(user => (
-                        <option key={user.id} value={user.id}>{user.name}</option>
-                    ))}
-                </select>
+  const handleFilterChange = useCallback((key, val) => {
+    setFilters(prev => ({ ...prev, [key]: val }));
+  }, []);
+
+  const handleSort = useCallback((col) => {
+    setSortColumn(prev => {
+      if (prev === col) {
+        setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+        return prev;
+      }
+      setSortDir('desc');
+      return col;
+    });
+  }, []);
+
+  const handleDelete = useCallback((globalIndex) => {
+    setConfirmIdx(globalIndex);
+  }, []);
+
+  const confirmDelete = useCallback(() => {
+    if (confirmIdx === null) return;
+    setUsers(prev => prev.map(u => {
+      if (u.id !== selectedUserId) return u;
+      const nb = [...u.battles];
+      nb.splice(confirmIdx, 1);
+      return { ...u, battles: nb };
+    }));
+    notify('Battle log deleted.', 'success');
+    setConfirmIdx(null);
+  }, [confirmIdx, selectedUserId, setUsers]);
+
+  const handleView = useCallback((battle) => {
+    const idx = battles.indexOf(battle);
+    setOverlayMode('view');
+    setOverlayIndex(idx >= 0 ? idx : null);
+    setOverlayBattle(battle);
+    setOverlayOpen(true);
+  }, [battles]);
+
+  const handleEdit = useCallback((battle) => {
+    const idx = battles.indexOf(battle);
+    setOverlayMode('edit');
+    setOverlayIndex(idx >= 0 ? idx : null);
+    setOverlayBattle(battle);
+    setOverlayOpen(true);
+  }, [battles]);
+
+  const handleOverlaySave = useCallback((updated) => {
+    if (overlayIndex == null) return;
+    setUsers(prev => prev.map(u => {
+      if (u.id !== selectedUserId) return u;
+      const nb = [...u.battles];
+      nb[overlayIndex] = { ...nb[overlayIndex], ...updated };
+      return { ...u, battles: nb };
+    }));
+    notify('Battle updated.', 'success');
+    setOverlayOpen(false);
+  }, [overlayIndex, selectedUserId, setUsers]);
+
+  const activeFilterCount = [
+    filters.search,
+    filters.result !== 'All' ? filters.result : '',
+    filters.missionType,
+    filters.dateFrom,
+    filters.dateTo,
+  ].filter(Boolean).length;
+
+  return (
+    <div className="wt-page wt-hex-bg" style={{ padding: '0 0 60px' }}>
+      <StyleInjector />
+
+      {/* Page header */}
+      <div className="wt-page-header">
+        <div style={{ maxWidth: 1400, margin: '0 auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
+            <div style={{ position: 'relative' }}>
+              <FileText size={28} style={{ color: '#f59e0b', filter: 'drop-shadow(0 0 10px rgba(245,158,11,0.5))' }} />
             </div>
-            {showConfirm && (
-                <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
-                    <div className="bg-gray-800 p-8 rounded-xl shadow-xl text-center border border-gray-600 animate-scale-in">
-                        <p className="mb-6 text-xl font-semibold text-yellow-400">Are you sure you want to delete this battle log?</p>
-                        <div className="flex justify-center space-x-4">
-                            <button
-                                onClick={confirmDelete}
-                                className="px-8 py-3 bg-red-700 text-white rounded-xl hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75 transition duration-300 transform hover:scale-105 shadow-lg"
-                            >
-                                Delete
-                            </button>
-                            <button
-                                onClick={cancelDelete}
-                                className="px-8 py-3 bg-gray-700 text-white rounded-xl hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-75 transition duration-300 transform hover:scale-105 shadow-lg"
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-            {showEditModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[60] p-4">
-                    <div className="bg-gray-800 p-8 rounded-xl shadow-xl border border-gray-600 w-11/12 md:w-3/4 lg:w-1/2 max-h-[90vh] flex flex-col animate-scale-in">
-                        <h3 className="text-2xl font-bold text-yellow-400 mb-6 flex items-center space-x-2">
-                            <Edit2 size={24} className="text-yellow-500" /> <span className="drop-shadow-md">Edit Battle Log</span>
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 overflow-y-auto custom-scrollbar pr-2">
-                            <div>
-                                <label className="block text-gray-300 text-sm font-bold mb-2" htmlFor="edit-result">Result:</label>
-                                <select
-                                    id="edit-result"
-                                    className="w-full p-2 rounded bg-gray-900 border border-gray-600 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={editingBattleData.result || ''}
-                                    onChange={e => setEditingBattleData(prev => ({ ...prev, result: e.target.value }))}
-                                >
-                                    <option value="Victory">Victory</option>
-                                    <option value="Defeat">Defeat</option>
-                                    <option value="Unknown">Unknown</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-gray-300 text-sm font-bold mb-2" htmlFor="edit-mission-type">Mission Type:</label>
-                                <input
-                                    type="text"
-                                    id="edit-mission-type"
-                                    className="w-full p-2 rounded bg-gray-900 border border-gray-600 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={editingBattleData.missionType || ''}
-                                    onChange={e => setEditingBattleData(prev => ({ ...prev, missionType: e.target.value }))}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-gray-300 text-sm font-bold mb-2" htmlFor="edit-mission-name">Mission Name:</label>
-                                <input
-                                    type="text"
-                                    id="edit-mission-name"
-                                    className="w-full p-2 rounded bg-gray-900 border border-gray-600 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={editingBattleData.missionName || ''}
-                                    onChange={e => setEditingBattleData(prev => ({ ...prev, missionName: e.target.value }))}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-gray-300 text-sm font-bold mb-2" htmlFor="edit-timestamp">Timestamp:</label>
-                                <input
-                                    type="datetime-local"
-                                    id="edit-timestamp"
-                                    className="w-full p-2 rounded bg-gray-900 border border-gray-600 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={editingBattleData.timestamp ? new Date(editingBattleData.timestamp).toISOString().slice(0, 16) : ''}
-                                    onChange={e => setEditingBattleData(prev => ({ ...prev, timestamp: e.target.value }))}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-gray-300 text-sm font-bold mb-2" htmlFor="edit-kills-aircraft">Aircraft Kills:</label>
-                                <input
-                                    type="number"
-                                    id="edit-kills-aircraft"
-                                    className="w-full p-2 rounded bg-gray-900 border border-gray-600 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={editingBattleData.killsAircraft}
-                                    onChange={e => setEditingBattleData(prev => ({ ...prev, killsAircraft: e.target.value }))}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-gray-300 text-sm font-bold mb-2" htmlFor="edit-kills-ground">Ground Kills:</label>
-                                <input
-                                    type="number"
-                                    id="edit-kills-ground"
-                                    className="w-full p-2 rounded bg-gray-900 border border-gray-600 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={editingBattleData.killsGround}
-                                    onChange={e => setEditingBattleData(prev => ({ ...prev, killsGround: e.target.value }))}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-gray-300 text-sm font-bold mb-2" htmlFor="edit-assists">Assists:</label>
-                                <input
-                                    type="number"
-                                    id="edit-assists"
-                                    className="w-full p-2 rounded bg-gray-900 border border-gray-600 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={editingBattleData.assists}
-                                    onChange={e => setEditingBattleData(prev => ({ ...prev, assists: e.target.value }))}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-gray-300 text-sm font-bold mb-2" htmlFor="edit-severe-damage">Severe Damage:</label>
-                                <input
-                                    type="number"
-                                    id="edit-severe-damage"
-                                    className="w-full p-2 rounded bg-gray-900 border border-gray-600 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={editingBattleData.severeDamage}
-                                    onChange={e => setEditingBattleData(prev => ({ ...prev, severeDamage: e.target.value }))}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-gray-300 text-sm font-bold mb-2" htmlFor="edit-critical-damage">Critical Damage:</label>
-                                <input
-                                    type="number"
-                                    id="edit-critical-damage"
-                                    className="w-full p-2 rounded bg-gray-900 border border-gray-600 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={editingBattleData.criticalDamage}
-                                    onChange={e => setEditingBattleData(prev => ({ ...prev, criticalDamage: e.target.value }))}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-gray-300 text-sm font-bold mb-2" htmlFor="edit-damage">Damage:</label>
-                                <input
-                                    type="number"
-                                    id="edit-damage"
-                                    className="w-full p-2 rounded bg-gray-900 border border-gray-600 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={editingBattleData.damage}
-                                    onChange={e => setEditingBattleData(prev => ({ ...prev, damage: e.target.value }))}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-gray-300 text-sm font-bold mb-2" htmlFor="edit-earned-sl">Earned SL:</label>
-                                <input
-                                    type="number"
-                                    id="edit-earned-sl"
-                                    className="w-full p-2 rounded bg-gray-900 border border-gray-600 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={editingBattleData.earnedSL}
-                                    onChange={e => setEditingBattleData(prev => ({ ...prev, earnedSL: e.target.value }))}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-gray-300 text-sm font-bold mb-2" htmlFor="edit-earned-crp">Earned CRP:</label>
-                                <input
-                                    type="number"
-                                    id="edit-earned-crp"
-                                    className="w-full p-2 rounded bg-gray-900 border border-gray-600 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={editingBattleData.earnedCRP}
-                                    onChange={e => setEditingBattleData(prev => ({ ...prev, earnedCRP: e.target.value }))}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-gray-300 text-sm font-bold mb-2" htmlFor="edit-total-rp">Total RP:</label>
-                                <input
-                                    type="number"
-                                    id="edit-total-rp"
-                                    className="w-full p-2 rounded bg-gray-900 border border-gray-600 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={editingBattleData.totalRP}
-                                    onChange={e => setEditingBattleData(prev => ({ ...prev, totalRP: e.target.value }))}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-gray-300 text-sm font-bold mb-2" htmlFor="edit-activity">Activity (%):</label>
-                                <input
-                                    type="number"
-                                    id="edit-activity"
-                                    className="w-full p-2 rounded bg-gray-900 border border-gray-600 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={editingBattleData.activity}
-                                    onChange={e => setEditingBattleData(prev => ({ ...prev, activity: e.target.value }))}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-gray-300 text-sm font-bold mb-2" htmlFor="edit-session">Session:</label>
-                                <input
-                                    type="text"
-                                    id="edit-session"
-                                    className="w-full p-2 rounded bg-gray-900 border border-gray-600 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={editingBattleData.session}
-                                    onChange={e => setEditingBattleData(prev => ({ ...prev, session: e.target.value }))}
-                                />
-                            </div>
-                            <div className="md:col-span-2">
-                                <label className="block text-gray-300 text-sm font-bold mb-2" htmlFor="edit-raw-text">Raw Log Text:</label>
-                                <textarea
-                                    id="edit-raw-text"
-                                    className="w-full p-2 rounded bg-gray-900 border border-gray-600 text-gray-100 resize-y min-h-[160px] font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    rows={8}
-                                    value={editingBattleData.rawText}
-                                    onChange={e => setEditingBattleData(prev => ({ ...prev, rawText: e.target.value }))}
-                                />
-                            </div>
-                        </div>
-                        <div className="flex flex-wrap gap-3 justify-end mt-auto pt-4 border-t border-gray-700">
-                            <button
-                                onClick={handleEditSave}
-                                className="bg-green-700 hover:bg-green-800 text-white font-bold py-2 px-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75 transition duration-300 transform hover:scale-105 flex items-center space-x-2 shadow-md"
-                            >
-                                <Save size={18} /> <span>Save</span>
-                            </button>
-                            <button
-                                onClick={handleEditCancel}
-                                className="bg-red-700 hover:bg-red-800 text-white font-bold py-2 px-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75 transition duration-300 transform hover:scale-105 flex items-center space-x-2 shadow-md"
-                            >
-                                <XCircle size={18} /> <span>Cancel</span>
-                            </button>
-                            <button
-                                onClick={() => handleShowPreview(battles[editingIndex])}
-                                className="bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition duration-300 transform hover:scale-105 flex items-center space-x-2 shadow-md"
-                            >
-                                <Eye size={18} /> <span>View Preview</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-            {overlayOpen && overlayBattle && (
-                <BattlePreviewOverlay isOpen={overlayOpen} battle={overlayBattle} onClose={handleCloseOverlay} mode={overlayMode} onSave={handleOverlaySave} />
-            )}
-            {currentUser && battles.length > 0 ? (
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-2">
-                        <span className="text-gray-300 font-semibold">Sort Kills By:</span>
-                        <button
-                            className={`px-3 py-1 rounded-xl font-bold text-sm transition duration-200 ${killsSortType === 'total' ? 'bg-yellow-500 text-gray-900 shadow' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'}`}
-                            onClick={() => handleKillsSortType('total')}
-                        >Total</button>
-                        <button
-                            className={`px-3 py-1 rounded-xl font-bold text-sm transition duration-200 ${killsSortType === 'air' ? 'bg-blue-500 text-gray-900 shadow' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'}`}
-                            onClick={() => handleKillsSortType('air')}
-                        >Air</button>
-                        <button
-                            className={`px-3 py-1 rounded-xl font-bold text-sm transition duration-200 ${killsSortType === 'ground' ? 'bg-green-500 text-gray-900 shadow' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'}`}
-                            onClick={() => handleKillsSortType('ground')}
-                        >Ground</button>
-                    </div>
-                </div>
-            ) : (
-                <p className="text-gray-400 text-center mt-8 p-4 bg-gray-700 rounded-lg border border-gray-600 shadow-inner">
-                    {selectedUserId ? 'No battle logs found for this user.' : 'Select a user from the dropdown to view their battle logs.'}
-                </p>
-            )}
-            <div className="overflow-x-auto rounded-lg border border-gray-700 shadow-lg mt-4">
-                <table className="w-full text-sm text-gray-200 table-fixed">
-                    <colgroup>
-                        <col style={{ width: '56px' }} />
-                        <col style={{ width: '150px' }} />
-                        <col />
-                        <col style={{ width: '130px' }} />
-                        <col style={{ width: '120px' }} />
-                        <col style={{ width: '150px' }} />
-                        <col style={{ width: '150px' }} />
-                        <col style={{ width: '150px' }} />
-                        <col style={{ width: '140px' }} />
-                    </colgroup>
-                    <thead className="text-yellow-300 bg-gray-700 uppercase shadow-md">
-                        <tr className="text-lg font-extrabold">
-                            <th scope="col" className="text-center py-3 px-2 align-bottom w-12" aria-sort="none" title="Row index">
-                                <div className="flex items-center justify-center gap-1"><Hash size={16} aria-hidden="true" /></div>
-                            </th>
-                            <th
-                                scope="col"
-                                className="text-left py-3 px-4 cursor-pointer hover:bg-gray-600 transition-colors duration-200"
-                                onClick={() => handleSort('timestamp')}
-                            >
-                                <div className="flex items-center gap-2">
-                                    <Calendar size={16} /> <span>Date</span>
-                                    {sortColumn === 'timestamp' && (
-                                        <span className="ml-1 flex items-center">{sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />}</span>
-                                    )}
-                                </div>
-                            </th>
-                            <th
-                                scope="col"
-                                className="text-left py-3 px-4 cursor-pointer hover:bg-gray-600 transition-colors duration-200"
-                                onClick={() => handleSort('missionName')}
-                            >
-                                <div className="flex items-center gap-2"><Map size={16} /> <span>Mission</span>
-                                    {sortColumn === 'missionName' && (
-                                        <span className="ml-1 flex items-center">{sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />}</span>
-                                    )}
-                                </div>
-                            </th>
-                            <th scope="col" className="text-center py-3 px-4 cursor-pointer hover:bg-gray-600 transition-colors duration-200" onClick={() => handleSort('result')}>
-                                <div className="flex items-center justify-center gap-2"><BadgeCheck size={16} /> <span>Result</span> {sortColumn==='result' && (<span className="ml-1 flex items-center">{sortDirection==='asc'?<ArrowUp size={16} />:<ArrowDown size={16} />}</span>)}</div>
-                            </th>
-                            <th
-                                scope="col"
-                                className="text-center py-3 px-4 cursor-pointer hover:bg-gray-600 transition-colors duration-200"
-                                onClick={() => handleSort('kills')}
-                            >
-                                <div className="flex flex-col items-center justify-center">
-                                    <div className="flex items-center gap-2">
-                                        <Swords size={16} /> <span>Kills</span>
-                                        {sortColumn === 'kills' && (
-                                            <span className="ml-1 flex items-center">{sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />}</span>
-                                        )}
-                                    </div>
-                                    <span className="text-xs font-normal text-gray-300 mt-1">({killsSortType === 'total' ? 'Total' : killsSortType === 'air' ? 'Air' : 'Ground'})</span>
-                                </div>
-                            </th>
-                            <th scope="col" className="text-left py-3 px-4 cursor-pointer hover:bg-gray-600 transition-colors duration-200" onClick={() => handleSort('sl')} title="Sort by Silver Lions">
-                                <div className="flex items-center justify-start gap-2"><ItemTypeIcon type="warpoints" size="xs" /> <span>SL</span> {sortColumn==='sl' && (sortDirection==='asc'?<ArrowUp size={16} />:<ArrowDown size={16} />)}</div>
-                            </th>
-                            <th scope="col" className="text-left py-3 px-4 cursor-pointer hover:bg-gray-600 transition-colors duration-200" onClick={() => handleSort('rp')} title="Sort by Research Points">
-                                <div className="flex items-center justify-start gap-2"><ItemTypeIcon type="rp" size="xs" /> <span>RP</span> {sortColumn==='rp' && (sortDirection==='asc'?<ArrowUp size={16} />:<ArrowDown size={16} />)}</div>
-                            </th>
-                            <th scope="col" className="text-left py-3 px-4 cursor-pointer hover:bg-gray-600 transition-colors duration-200" onClick={() => handleSort('crp')} title="Sort by Convertible RP">
-                                <div className="flex items-center justify-start gap-2"><ItemTypeIcon type="crp" size="xs" /> <span>CRP</span> {sortColumn==='crp' && (sortDirection==='asc'?<ArrowUp size={16} />:<ArrowDown size={16} />)}</div>
-                            </th>
-                            <th scope="col" className="text-center py-3 px-4"><div className="flex items-center justify-center gap-2"><Eye size={16} /> <span>Actions</span></div></th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-gray-800 divide-y divide-gray-700">
-                        {sortedBattles.map((battle, index) => {
-                            const { date, time } = formatDateParts(battle.timestamp);
-                            return (
-                                <tr key={index} className="hover:bg-gray-700 transition-colors duration-150">
-                                    <td className="text-center py-4 px-2 font-mono text-gray-400">
-                                        {index + 1}
-                                    </td>
-                                    <td className="py-4 px-4 whitespace-nowrap">
-                                        <div className="text-base text-white font-semibold">{date}</div>
-                                        <div className="text-xs text-gray-400">{time}</div>
-                                    </td>
-                                    <td className="py-4 px-4">
-                                        <div className="flex items-center gap-2 font-semibold">
-                                            {((battle.killsAircraft||0) >= (battle.killsGround||0)) ? (
-                                                <Plane size={16} className="text-blue-300" aria-hidden="true" />
-                                            ) : (
-                                                <Car size={16} className="text-green-300" aria-hidden="true" />
-                                            )}
-                                            <span>{battle.missionName}</span>
-                                        </div>
-                                        <div className="text-gray-400 text-xs">{battle.missionType}</div>
-                                    </td>
-                                    <td className="text-center py-4 px-4">
-                                        <span className={`py-1 px-3 rounded-full text-xs font-bold ${
-                                            battle.result === 'Victory' ? 'bg-green-600 text-white' :
-                                            battle.result === 'Defeat' ? 'bg-red-600 text-white' :
-                                            'bg-gray-600 text-white'
-                                        }`}>
-                                            {battle.result}
-                                        </span>
-                                    </td>
-                                    <td className="text-center py-4 px-4">
-                                        <div className="flex items-center justify-center gap-2 text-white text-lg whitespace-nowrap">
-                                            <Swords size={16} className="text-gray-300" aria-hidden="true" />
-                                            <span className="tabular-nums font-semibold">{getKillsValue(battle)}</span>
-                                        </div>
-                                        <div className="text-xs text-gray-400 whitespace-nowrap">
-                                            ({battle.killsAircraft || 0} air, {battle.killsGround || 0} ground)
-                                        </div>
-                                    </td>
-                                    <td className="text-left py-4 px-4">
-                                        <div className="inline-flex items-center gap-2">
-                                            <ItemTypeIcon type="warpoints" size="xs" />
-                                            <span className="font-mono tabular-nums text-base">{battle.earnedSL ? battle.earnedSL.toLocaleString() : 'N/A'}</span>
-                                        </div>
-                                    </td>
-                                    <td className="text-left py-4 px-4">
-                                        <div className="inline-flex items-center gap-2">
-                                            <ItemTypeIcon type="rp" size="xs" />
-                                            <span className="font-mono tabular-nums text-base">{battle.totalRP ? battle.totalRP.toLocaleString() : 'N/A'}</span>
-                                        </div>
-                                    </td>
-                                    <td className="text-left py-4 px-4">
-                                        <div className="inline-flex items-center gap-2">
-                                            <ItemTypeIcon type="crp" size="xs" />
-                                            <span className="font-mono tabular-nums text-base">{battle.earnedCRP ? battle.earnedCRP.toLocaleString() : 'N/A'}</span>
-                                        </div>
-                                    </td>
-                                    <td className="py-4 px-4 text-right whitespace-nowrap">
-                                        <div className="flex items-center justify-end space-x-2">
-                                            <button
-                                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleShowPreview(battle, index); }}
-                                                className="p-2 text-blue-400 hover:text-blue-200 transition-colors duration-200 rounded-full hover:bg-gray-600"
-                                                title="View Battle Preview"
-                                            >
-                                                <Eye size={20} />
-                                            </button>
-                                            <button
-                                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOverlayMode('edit'); setOverlayIndex(index); setOverlayBattle(battle); setOverlayOpen(true); }}
-                                                className="p-2 text-yellow-400 hover:text-yellow-200 transition-colors duration-200 rounded-full hover:bg-gray-600"
-                                                title="Edit Battle Log"
-                                            >
-                                                <Edit2 size={20} />
-                                            </button>
-                                            <button
-                                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(index); }}
-                                                className="p-2 text-red-400 hover:text-red-200 transition-colors duration-200 rounded-full hover:bg-gray-600"
-                                                title="Delete Battle Log"
-                                            >
-                                                <Trash2 size={20} />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
+            <div>
+              <h1 className="wt-display wt-glow-amber" style={{ margin: 0, fontSize: 26, color: '#f59e0b', letterSpacing: '0.04em' }}>
+                BATTLE LOGS
+              </h1>
+              <p style={{ margin: 0, fontSize: 11, color: '#475569', fontFamily: "'Share Tech Mono'", letterSpacing: '0.08em' }}>
+                COMBAT HISTORY ARCHIVE
+              </p>
             </div>
-            {battles.length === 0 && selectedUserId && (
-                <div className="text-center text-gray-400 p-4 mt-4 bg-gray-700 rounded-lg">No battle logs found for this user.</div>
+            {battles.length > 0 && (
+              <div style={{ marginLeft: 'auto', fontFamily: "'Share Tech Mono'", fontSize: 13, color: '#475569' }}>
+                {battles.length} <span style={{ color: '#f59e0b' }}>total</span>
+              </div>
             )}
+          </div>
+
+          {/* Pilot selector */}
+          <div style={{ maxWidth: 380 }}>
+            <label style={{ display: 'block', fontFamily: "'Rajdhani'", fontSize: 11, fontWeight: 600, color: '#f59e0b', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>
+              ▸ SELECT PILOT
+            </label>
+            <select
+              className="wt-select"
+              value={selectedUserId || ''}
+              onChange={e => setSelectedUserId(e.target.value)}
+            >
+              <option value="">— Select pilot —</option>
+              {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </select>
+          </div>
         </div>
-    );
+      </div>
+
+      {/* Main content */}
+      <div style={{ maxWidth: 1400, margin: '0 auto', padding: '24px 24px' }}>
+        {/* No user selected */}
+        {!selectedUserId && (
+          <div style={{ textAlign: 'center', padding: '80px 24px', border: '1px dashed rgba(245,158,11,0.2)', borderRadius: 12 }}>
+            <Users size={48} style={{ marginBottom: 16, opacity: 0.3, color: '#f59e0b' }} />
+            <p className="wt-display" style={{ fontSize: 20, color: '#475569', margin: '0 0 8px' }}>NO PILOT SELECTED</p>
+            <p style={{ fontSize: 13, color: '#334155', fontFamily: "'Exo 2'" }}>Choose a pilot above to view their battle history.</p>
+          </div>
+        )}
+
+        {/* User selected, no battles */}
+        {selectedUserId && battles.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '80px 24px', border: '1px dashed rgba(245,158,11,0.15)', borderRadius: 12 }}>
+            <FileText size={48} style={{ marginBottom: 16, opacity: 0.3, color: '#f59e0b' }} />
+            <p className="wt-display" style={{ fontSize: 20, color: '#f59e0b', margin: '0 0 8px' }}>NO BATTLE DATA</p>
+            <p style={{ fontSize: 13, color: '#334155', fontFamily: "'Exo 2'" }}>
+              {currentUser?.name} has no battle logs. Go to Data Management to add some.
+            </p>
+          </div>
+        )}
+
+        {/* Battles exist */}
+        {selectedUserId && battles.length > 0 && (
+          <>
+            {/* Stats bar */}
+            <StatsBar battles={filtered} />
+
+            {/* Filters */}
+            <FiltersPanel
+              filters={filters}
+              onChange={handleFilterChange}
+              missionTypes={missionTypes}
+              onReset={() => setFilters(INITIAL_FILTERS)}
+            />
+
+            {/* Sort bar */}
+            <SortBar sortColumn={sortColumn} sortDir={sortDir} onSort={handleSort} />
+
+            {/* Results count */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <span style={{ fontFamily: "'Share Tech Mono'", fontSize: 12, color: '#475569' }}>
+                {filtered.length === battles.length
+                  ? `${battles.length} battles`
+                  : `${filtered.length} of ${battles.length} battles`}
+              </span>
+              {activeFilterCount > 0 && (
+                <span style={{
+                  padding: '2px 8px', borderRadius: 10, fontSize: 11,
+                  background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)',
+                  color: '#f59e0b', fontFamily: "'Share Tech Mono'",
+                }}>
+                  {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''}
+                </span>
+              )}
+              {filtered.length === 0 && battles.length > 0 && (
+                <span style={{ color: '#ef4444', fontSize: 12, fontFamily: "'Exo 2'" }}>
+                  No results — try adjusting filters
+                </span>
+              )}
+            </div>
+
+            {/* Battle cards */}
+            {visible.length === 0 ? (
+              <EmptyState
+                message="No battles match your filters"
+                sub="Try clearing some filters above"
+              />
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {visible.map((battle, i) => {
+                  // Find the actual index in original battles array for deletion/editing
+                  const origIdx = battles.indexOf(battle);
+                  return (
+                    <BattleCard
+                      key={battle.id || `${battle.session}_${i}`}
+                      battle={battle}
+                      index={filtered.indexOf(battle)}
+                      onView={handleView}
+                      onEdit={handleEdit}
+                      onDelete={() => handleDelete(origIdx)}
+                    />
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Load more */}
+            <WTLoadMoreButton
+              onLoadMore={loadMore}
+              hasMore={hasMore}
+              loading={false}
+              visibleCount={visible.length}
+              totalCount={filtered.length}
+            />
+          </>
+        )}
+      </div>
+
+      {/* Delete confirm */}
+      {confirmIdx !== null && (
+        <DeleteConfirm
+          onConfirm={confirmDelete}
+          onCancel={() => setConfirmIdx(null)}
+        />
+      )}
+
+      {/* Battle overlay */}
+      {overlayOpen && overlayBattle && (
+        <BattlePreviewOverlay
+          isOpen={overlayOpen}
+          battle={overlayBattle}
+          onClose={() => setOverlayOpen(false)}
+          mode={overlayMode}
+          onSave={handleOverlaySave}
+        />
+      )}
+    </div>
+  );
 };
 
 export default BattleLogsPage;

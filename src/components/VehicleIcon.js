@@ -30,12 +30,17 @@ const VehicleIcon = ({
     const info = extractVehicleInfo(vehicleName);
     setVehicleInfo(info);
 
-    // Get icon path
-    const path = getVehicleIcon(vehicleName, country, rank, type);
-    setIconPath(path);
+    // FIX 1: Pass overrides as a single object
+    // FIX 2: Destructure the returned object to get the actual strings
+    const { specificPath, fallbackPath } = getVehicleIcon(vehicleName, { country, rank, type });
+    
+    // Choose the best available path
+    const bestPath = specificPath || fallbackPath;
+    
+    setIconPath(bestPath);
 
     // Test if image loads
-    if (path) {
+    if (bestPath) {
       const img = new Image();
       img.onload = () => {
         setIsLoading(false);
@@ -44,9 +49,10 @@ const VehicleIcon = ({
       img.onerror = () => {
         setIsLoading(false);
         setHasError(true);
-        console.warn(`Failed to load vehicle icon: ${path}`);
+        // This will now print the actual string path instead of [object Object]
+        console.warn(`Failed to load vehicle icon: ${bestPath}`); 
       };
-      img.src = path;
+      img.src = bestPath;
     } else {
       setIsLoading(false);
       setHasError(true);

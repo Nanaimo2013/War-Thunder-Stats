@@ -1,399 +1,179 @@
-// War Thunder Asset Manager
-// Centralized asset loading and mapping for vehicle icons, country flags, and item types
+/**
+ * assetManager.js
+ *
+ * Thin, focused asset resolver built on top of vehicleRegistry + constants.
+ *
+ * All the heavy lifting (country / type / rank detection, registry lookup,
+ * fallback icon selection) lives in vehicleRegistry.js.  This file is purely
+ * about resolving final paths and providing a clean API to UI components.
+ */
 
-// Vehicle name normalization function
-const normalizeVehicleName = (vehicleName) => {
-  if (!vehicleName) return '';
-  return vehicleName
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '')
-    .replace(/\s+/g, '')
-    .replace(/[()-]/g, '');
-};
+import { lookupVehicle, getVehicleIconPath } from './vehicleRegistry.js';
+import {
+  COUNTRY_FLAG_PATHS, ITEM_TYPE_ICONS, BASE_VEHICLE_TYPE_ICONS,
+  DEFAULT_FALLBACK_ICONS, COUNTRY_ALIASES,
+} from './constants.js';
 
-// Country name normalization
-const normalizeCountryName = (countryName) => {
-  if (!countryName) return '';
-  const countryMap = {
-    'usa': 'usa',
-    'united states': 'usa',
-    'germany': 'germany',
-    'deutschland': 'germany',
-    'ussr': 'ussr',
-    'soviet union': 'ussr',
-    'russia': 'ussr',
-    'japan': 'japan',
-    'china': 'china',
-    'france': 'france',
-    'italy': 'italy',
-    'sweden': 'sweden',
-    'israel': 'israel'
-  };
-  
-  const normalized = countryName.toLowerCase().trim();
-  return countryMap[normalized] || normalized;
-};
+export const extractVehicleInfo = lookupVehicle;
 
-// Vehicle icon mapping (will be populated dynamically)
-const vehicleIconMap = {
-  aviation: {
-    germany: {
-      I: {},
-      II: {},
-      III: {},
-      IV: {},
-      V: {},
-      VI: {},
-      VII: {},
-      VIII: {}
-    },
-    usa: {
-      I: {},
-      II: {},
-      III: {},
-      IV: {},
-      V: {},
-      VI: {},
-      VII: {},
-      VIII: {}
-    }
-  },
-  ground_vehicles: {
-    germany: {
-      I: {},
-      II: {},
-      III: {},
-      IV: {},
-      V: {},
-      VI: {},
-      VII: {},
-      VIII: {}
-    },
-    usa: {
-      I: {},
-      II: {},
-      III: {},
-      IV: {},
-      V: {},
-      VI: {},
-      VII: {},
-      VIII: {}
-    }
-  }
-};
+// ─── Country flag ──────────────────────────────────────────────────────────────
 
-// Country flag mapping
-const countryFlagMap = {
-  'usa': '/assets/images/wt-country-flags/country_usa.svg',
-  'germany': '/assets/images/wt-country-flags/country_germany.svg',
-  'ussr': '/assets/images/wt-country-flags/country_ussr.svg',
-  'japan': '/assets/images/wt-country-flags/country_japan.svg',
-  'china': '/assets/images/wt-country-flags/country_china.svg',
-  'france': '/assets/images/wt-country-flags/country_france.svg',
-  'italy': '/assets/images/wt-country-flags/country_italy.svg',
-  'sweden': '/assets/images/wt-country-flags/country_sweden.svg',
-  'israel': '/assets/images/wt-country-flags/country_israel.svg'
-};
-
-// Item type icon mapping
-const itemTypeMap = {
-  // Research Points
-  'rp': '/assets/images/wt-items-type/item_type_rp.svg',
-  'research_points': '/assets/images/wt-items-type/item_type_rp.svg',
-  // Convertible Research Points
-  'crp': '/assets/images/wt-items-type/item_type_crp.svg',
-  'convertible_research_points': '/assets/images/wt-items-type/item_type_crp.svg',
-  'convertible_rp': '/assets/images/wt-items-type/item_type_crp.svg',
-  // Golden Eagles
-  'eagles': '/assets/images/wt-items-type/item_type_eagles.svg',
-  'golden_eagles': '/assets/images/wt-items-type/item_type_eagles.svg',
-  // Silver Lions (Warpoints)
-  'warpoints': '/assets/images/wt-items-type/item_type_warpoints.svg',
-  'silver_lions': '/assets/images/wt-items-type/item_type_warpoints.svg',
-  'sl': '/assets/images/wt-items-type/item_type_warpoints.svg'
-};
-
-// Base vehicle type icons (fallbacks)
-const baseVehicleTypeMap = {
-  aviation: {
-    'fighter': '/assets/images/wt-base-vehicle-type/aviation/icon_fighter.svg',
-    'bomber': '/assets/images/wt-base-vehicle-type/aviation/icon_bomber.svg',
-    'assault': '/assets/images/wt-base-vehicle-type/aviation/icon_assault.svg',
-    'jet': '/assets/images/wt-base-vehicle-type/aviation/icon_jet.svg',
-    'ucav': '/assets/images/wt-base-vehicle-type/aviation/icon_ucav.svg'
-  },
-  ground_vehicles: {
-    'light': '/assets/images/wt-base-vehicle-type/ground-vehicles/icon_tank_light.svg',
-    'medium': '/assets/images/wt-base-vehicle-type/ground-vehicles/icon_tank_medium.svg',
-    'heavy': '/assets/images/wt-base-vehicle-type/ground-vehicles/icon_tank_heavy.svg',
-    'destroyer': '/assets/images/wt-base-vehicle-type/ground-vehicles/icon_tank_destroyer.svg',
-    'aa': '/assets/images/wt-base-vehicle-type/ground-vehicles/icon_tank_aa.svg'
-  }
-};
-
-// Vehicle type detection
-const detectVehicleType = (vehicleName) => {
-  const name = vehicleName.toLowerCase();
-  
-  // Aviation detection
-  if (name.includes('bf') || name.includes('me') || name.includes('he') || 
-      name.includes('fw') || name.includes('ju') || name.includes('do') ||
-      name.includes('f-') || name.includes('p-') || name.includes('a-') ||
-      name.includes('b-') || name.includes('c-') || name.includes('f4u') ||
-      name.includes('spitfire') || name.includes('hurricane') ||
-      name.includes('mig') || name.includes('yak') || name.includes('la') ||
-      name.includes('il') || name.includes('tu') || name.includes('su') ||
-      name.includes('zero') || name.includes('ki') || name.includes('a6m') ||
-      name.includes('j2m') || name.includes('n1k') || name.includes('g4m') ||
-      name.includes('b5n') || name.includes('d3a') || name.includes('d4y')) {
-    return 'aviation';
-  }
-  
-  // Ground vehicle detection
-  if (name.includes('pzkpfw') || name.includes('tiger') || name.includes('panther') ||
-      name.includes('panzer') || name.includes('stug') || name.includes('jagd') ||
-      name.includes('m4') || name.includes('m3') || name.includes('m26') ||
-      name.includes('m60') || name.includes('m1') || name.includes('m48') ||
-      name.includes('t-') || name.includes('kv') || name.includes('is') ||
-      name.includes('su') || name.includes('bt') || name.includes('as') ||
-      name.includes('type') || name.includes('chi') || name.includes('ho') ||
-      name.includes('ka') || name.includes('ha') || name.includes('ro') ||
-      name.includes('amx') || name.includes('leclerc') || name.includes('char') ||
-      name.includes('somua') || name.includes('b1') || name.includes('arl') ||
-      name.includes('carro') || name.includes('p40') || name.includes('m13') ||
-      name.includes('m14') || name.includes('m15') || name.includes('centauro') ||
-      name.includes('strv') || name.includes('ikv') || name.includes('pbil') ||
-      name.includes('marder') || name.includes('leopard') || name.includes('m48')) {
-    return 'ground_vehicles';
-  }
-  
-  return 'aviation'; // Default fallback
-};
-
-// Rank detection from vehicle name or battle data
-const detectRank = (vehicleName, battleData = null) => {
-  const name = vehicleName.toLowerCase();
-  
-  // Try to detect from vehicle name patterns
-  if (name.includes('i') || name.includes('1')) return 'I';
-  if (name.includes('ii') || name.includes('2')) return 'II';
-  if (name.includes('iii') || name.includes('3')) return 'III';
-  if (name.includes('iv') || name.includes('4')) return 'IV';
-  if (name.includes('v') || name.includes('5')) return 'V';
-  if (name.includes('vi') || name.includes('6')) return 'VI';
-  if (name.includes('vii') || name.includes('7')) return 'VII';
-  if (name.includes('viii') || name.includes('8')) return 'VIII';
-  
-  // Try to detect from battle data context
-  if (battleData) {
-    // Add logic to detect rank from battle data
-    // This could be based on vehicle performance, rewards, etc.
-  }
-  
-  return 'I'; // Default fallback
-};
-
-// Country detection from vehicle name
-const detectCountry = (vehicleName) => {
-  const name = vehicleName.toLowerCase();
-  
-  // German vehicles
-  if (name.includes('bf') || name.includes('me') || name.includes('he') || 
-      name.includes('fw') || name.includes('ju') || name.includes('do') ||
-      name.includes('pzkpfw') || name.includes('tiger') || name.includes('panther') ||
-      name.includes('panzer') || name.includes('stug') || name.includes('jagd')) {
-    return 'germany';
-  }
-  
-  // US vehicles
-  if (name.includes('f-') || name.includes('p-') || name.includes('a-') ||
-      name.includes('b-') || name.includes('c-') || name.includes('f4u') ||
-      name.includes('m4') || name.includes('m3') || name.includes('m26') ||
-      name.includes('m60') || name.includes('m1') || name.includes('m48')) {
-    return 'usa';
-  }
-  
-  // Soviet vehicles
-  if (name.includes('mig') || name.includes('yak') || name.includes('la') ||
-      name.includes('il') || name.includes('tu') || name.includes('su') ||
-      name.includes('t-') || name.includes('kv') || name.includes('is') ||
-      name.includes('bt') || name.includes('as')) {
-    return 'ussr';
-  }
-  
-  // Japanese vehicles
-  if (name.includes('zero') || name.includes('ki') || name.includes('a6m') ||
-      name.includes('j2m') || name.includes('n1k') || name.includes('g4m') ||
-      name.includes('b5n') || name.includes('d3a') || name.includes('d4y') ||
-      name.includes('type') || name.includes('chi') || name.includes('ho') ||
-      name.includes('ka') || name.includes('ha') || name.includes('ro')) {
-    return 'japan';
-  }
-  
-  // Chinese vehicles
-  if (name.includes('j-') || name.includes('q-') || name.includes('h-')) {
-    return 'china';
-  }
-  
-  // French vehicles
-  if (name.includes('amx') || name.includes('leclerc') || name.includes('char') ||
-      name.includes('somua') || name.includes('b1') || name.includes('arl')) {
-    return 'france';
-  }
-  
-  // Italian vehicles
-  if (name.includes('carro') || name.includes('p40') || name.includes('m13') ||
-      name.includes('m14') || name.includes('m15') || name.includes('centauro')) {
-    return 'italy';
-  }
-  
-  // Swedish vehicles
-  if (name.includes('strv') || name.includes('ikv') || name.includes('pbil')) {
-    return 'sweden';
-  }
-  
-  // Israeli vehicles
-  if (name.includes('marder') || name.includes('leopard') || name.includes('m48')) {
-    return 'israel';
-  }
-  
-  return 'usa'; // Default fallback
-};
-
-// Get vehicle icon with fallback
-export const getVehicleIcon = (vehicleName, country = null, rank = null, type = null) => {
-  if (!vehicleName) {
-    console.warn('Vehicle name is required for icon lookup');
-    return null;
-  }
-  
-  // Auto-detect if not provided
-  const detectedCountry = country || detectCountry(vehicleName);
-  const detectedRank = rank || detectRank(vehicleName);
-  const detectedType = type || detectVehicleType(vehicleName);
-  
-  const normalizedName = normalizeVehicleName(vehicleName);
-  const normalizedCountry = normalizeCountryName(detectedCountry);
-  
-  // Try to find specific vehicle icon
-  const iconPath = vehicleIconMap[detectedType]?.[normalizedCountry]?.[detectedRank]?.[normalizedName];
-  
-  if (iconPath) {
-    return `/assets/images/wt-vehicle-icons/${detectedType}/countries/${normalizedCountry}/ranks/${detectedRank}/${iconPath}`;
-  }
-  
-  // Fallback to base vehicle type icon
-  console.warn(`Missing vehicle icon: ${vehicleName} (${normalizedCountry}, rank ${detectedRank}, type ${detectedType})`);
-  
-  // Determine base vehicle type for fallback
-  let baseType = 'fighter'; // Default for aviation
-  if (detectedType === 'ground_vehicles') {
-    baseType = 'medium'; // Default for ground vehicles
-  }
-  
-  return baseVehicleTypeMap[detectedType]?.[baseType] || null;
-};
-
-// Get country flag
-export const getCountryFlag = (country) => {
+/**
+ * Returns the SVG path for a country's flag.
+ * Accepts any of the aliases defined in COUNTRY_ALIASES.
+ *
+ * @param {string} country  e.g. 'germany', 'ussr', 'Great Britain'
+ * @returns {string|null}
+ */
+export function getCountryFlag(country) {
   if (!country) return null;
-  
-  const normalizedCountry = normalizeCountryName(country);
-  const flagPath = countryFlagMap[normalizedCountry];
-  
-  if (!flagPath) {
-    console.warn(`Missing country flag: ${country}`);
-    return null;
-  }
-  
-  return flagPath;
-};
+  const key = String(country).toLowerCase().trim();
+  const canonical = COUNTRY_ALIASES[key] || key;
+  return COUNTRY_FLAG_PATHS[canonical] || null;
+}
 
-// Get item type icon
-export const getItemTypeIcon = (itemType) => {
+// ─── Vehicle icon ──────────────────────────────────────────────────────────────
+
+/**
+ * Returns the best icon path for a vehicle.
+ *
+ * Resolution order:
+ *  1. Specific icon path from registry (precise vehicle icon)
+ *  2. Fallback base-type icon (e.g. medium tank silhouette)
+ *  3. null
+ *
+ * To handle a missing specific icon gracefully in your UI:
+ *   <img src={getVehicleIcon(name)} onError={e => e.target.src = info.fallbackIconPath} />
+ *
+ * @param {string} vehicleName  Display name as it appears in the log
+ * @param {{ country?: string, type?: string, rank?: string }} [overrides]
+ *   Pass explicit overrides if you already know metadata (avoids lookup).
+ * @returns {{ specificPath: string|null, fallbackPath: string|null, info: Object }}
+ */
+export function getVehicleIcon(vehicleName, overrides = {}) {
+  const info = lookupVehicle(vehicleName);
+
+  // Allow caller to override auto-detected fields (useful for known vehicles)
+  const merged = { ...info, ...overrides };
+
+  const specificPath  = getVehicleIconPath(merged);
+  const fallbackPath  = merged.fallbackIconPath || DEFAULT_FALLBACK_ICONS[merged.type] || null;
+
+  return { specificPath, fallbackPath, info: merged };
+}
+
+// ─── Item type icon ────────────────────────────────────────────────────────────
+
+/**
+ * Returns the icon path for a reward/currency type.
+ *
+ * @param {string} itemType  e.g. 'rp', 'sl', 'eagles', 'crp'
+ * @returns {string|null}
+ */
+export function getItemTypeIcon(itemType) {
   if (!itemType) return null;
-  
-  const normalizedType = itemType.toLowerCase().replace(/\s+/g, '_');
-  const iconPath = itemTypeMap[normalizedType];
-  
-  if (!iconPath) {
-    console.warn(`Missing item type icon: ${itemType}`);
-    return null;
-  }
-  
-  return iconPath;
-};
+  const key = String(itemType).toLowerCase().replace(/\s+/g, '_');
+  return ITEM_TYPE_ICONS[key] || null;
+}
 
-// Get base vehicle type icon
-export const getBaseVehicleTypeIcon = (vehicleType, baseType = null) => {
+// ─── Base vehicle type icon ────────────────────────────────────────────────────
+
+/**
+ * Returns the generic silhouette icon for a vehicle type + base type.
+ *
+ * @param {string} vehicleType  VehicleType enum value ('aviation'|'ground'|'naval')
+ * @param {string} [baseType]   VehicleBaseType enum value (auto-selects default if omitted)
+ * @returns {string|null}
+ */
+export function getBaseVehicleTypeIcon(vehicleType, baseType) {
   if (!vehicleType) return null;
-  
-  if (!baseType) {
-    // Auto-detect base type
-    baseType = vehicleType === 'aviation' ? 'fighter' : 'medium';
+  const typeMap = BASE_VEHICLE_TYPE_ICONS[vehicleType];
+  if (!typeMap) return null;
+  if (baseType && typeMap[baseType]) return typeMap[baseType];
+  return DEFAULT_FALLBACK_ICONS[vehicleType] || null;
+}
+
+// ─── Batch helpers ────────────────────────────────────────────────────────────
+
+/**
+ * Given a battle's vehicle list, build a map of displayName → icon paths.
+ * This is what UI components should call instead of iterating themselves.
+ *
+ * @param {Object[]} vehicles  battle.vehicles array
+ * @returns {Map<string, { specificPath: string|null, fallbackPath: string|null }>}
+ */
+export function buildVehicleIconMap(vehicles) {
+  const map = new Map();
+  for (const v of vehicles || []) {
+    const { specificPath, fallbackPath } = getVehicleIcon(v.displayName);
+    map.set(v.displayName, { specificPath, fallbackPath });
   }
-  
-  const iconPath = baseVehicleTypeMap[vehicleType]?.[baseType];
-  
-  if (!iconPath) {
-    console.warn(`Missing base vehicle type icon: ${vehicleType}/${baseType}`);
-    return null;
-  }
-  
-  return iconPath;
-};
+  return map;
+}
 
-// Vehicle information extractor
-export const extractVehicleInfo = (vehicleName) => {
-  return {
-    name: vehicleName,
-    country: detectCountry(vehicleName),
-    rank: detectRank(vehicleName),
-    type: detectVehicleType(vehicleName),
-    normalizedName: normalizeVehicleName(vehicleName)
-  };
-};
-
-// Debug function to list all available assets
-export const debugAssets = () => {
-  console.log('=== War Thunder Asset Debug ===');
-  console.log('Country Flags:', Object.keys(countryFlagMap));
-  console.log('Item Types:', Object.keys(itemTypeMap));
-  console.log('Base Vehicle Types:', Object.keys(baseVehicleTypeMap));
-  console.log('Vehicle Icon Map Structure:', vehicleIconMap);
-};
-
-// Asset preloader for commonly used icons
-export const preloadCommonAssets = () => {
-  const commonAssets = [
-    ...Object.values(countryFlagMap),
-    ...Object.values(itemTypeMap),
-    ...Object.values(baseVehicleTypeMap.aviation),
-    ...Object.values(baseVehicleTypeMap.ground_vehicles)
-  ];
-  
-  commonAssets.forEach(assetPath => {
-    if (assetPath) {
-      const img = new Image();
-      img.src = assetPath;
+/**
+ * Given a battle's vehicle list, build a map of country → flag path.
+ * Deduped — one entry per unique country.
+ *
+ * @param {Object[]} vehicles  battle.vehicles array
+ * @returns {Map<string, string>}
+ */
+export function buildCountryFlagMap(vehicles) {
+  const map = new Map();
+  for (const v of vehicles || []) {
+    if (v.country && !map.has(v.country)) {
+      map.set(v.country, getCountryFlag(v.country));
     }
-  });
-  
-  console.log(`Preloaded ${commonAssets.length} common assets`);
-};
+  }
+  return map;
+}
 
-// Export all utility functions
+// ─── Asset preloader ──────────────────────────────────────────────────────────
+
+/**
+ * Preloads the most commonly used static assets into the browser's cache.
+ * Call once on app startup.
+ */
+export function preloadCommonAssets() {
+  if (typeof Image === 'undefined') return; // SSR / non-browser
+
+  const paths = [
+    ...Object.values(COUNTRY_FLAG_PATHS),
+    ...Object.values(ITEM_TYPE_ICONS),
+    ...Object.values(DEFAULT_FALLBACK_ICONS),
+    // All base type fallbacks
+    ...Object.values(BASE_VEHICLE_TYPE_ICONS).flatMap(m => Object.values(m)),
+  ];
+
+  let loaded = 0;
+  const unique = [...new Set(paths.filter(Boolean))];
+  for (const src of unique) {
+    const img = new Image();
+    img.onload = () => { loaded++; };
+    img.src = src;
+  }
+
+  console.log(`[assetManager] Preloading ${unique.length} common assets`);
+}
+
+// ─── Debug ────────────────────────────────────────────────────────────────────
+
+export function debugAssets() {
+  console.group('[assetManager] Asset debug');
+  console.log('Country flags:', COUNTRY_FLAG_PATHS);
+  console.log('Item types:',    ITEM_TYPE_ICONS);
+  console.log('Base types:',    BASE_VEHICLE_TYPE_ICONS);
+  console.log('Fallbacks:',     DEFAULT_FALLBACK_ICONS);
+  console.groupEnd();
+}
+
 export default {
-  getVehicleIcon,
   getCountryFlag,
+  getVehicleIcon,
   getItemTypeIcon,
   getBaseVehicleTypeIcon,
-  extractVehicleInfo,
-  normalizeVehicleName,
-  normalizeCountryName,
-  detectVehicleType,
-  detectCountry,
-  detectRank,
+  buildVehicleIconMap,
+  buildCountryFlagMap,
+  preloadCommonAssets,
   debugAssets,
-  preloadCommonAssets
 };

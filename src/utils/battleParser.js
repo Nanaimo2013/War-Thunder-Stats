@@ -1,384 +1,732 @@
-// Function to parse a single battle log text
-import { extractVehicleInfo, getVehicleIcon, getCountryFlag } from './assetManager';
+/**
+ * battleParser.js
+ *
+ * Transforms raw War Thunder battle log text into a structured JSON battle object.
+ *
+ * @version 2.1.0
+ *
+ * CHANGELOG v2.1.0:
+ *  ✓  CRITICAL FIX: extractRewardValue() — reward strings like "1715 + (PA)859 = 2574 SL"
+ *     were being parsed by stripping all non-digits → "171585920574" (garbage).
+ *     Now correctly extracts the FINAL value after the last "=" sign.
+ *  ✓  Fix applied to: parseCombatLine (sl/rp), parseCaptureLine (sl/rp),
+ *     parseActivityTimeLine, parseTimePlayedLine.
+ *  ✓  parseActivityTimeLine: rewritten with smarter regex to handle expanded
+ *     reward strings in per-vehicle activity sections.
+ *  ✓  parseTimePlayedLine: same fix.
+ *  ✓  Added SCHEMA_VERSION export for migration tooling.
+ *  ✓  parseBattleLog now attaches a parsedFrom: 'text' marker for dedup safety.
+ */
 
-export const parseBattleLog = (logText) => {
-    const battle = {
-        id: crypto.randomUUID(), // Unique ID for each battle
-        timestamp: new Date().toISOString(), // When the battle was added
-        result: 'Unknown',
-        missionType: 'Unknown',
-        missionName: 'Unknown',
-        killsAircraft: 0,
-        killsGround: 0,
-        assists: 0,
-        severeDamage: 0,
-        criticalDamage: 0,
-        damage: 0,
-        awardsSL: 0,
-        activityTimeSL: 0,
-        activityTimeRP: 0,
-        timePlayedRP: 0,
-        rewardSL: 0,
-        skillBonusRP: 0,
-        earnedSL: 0,
-        earnedCRP: 0,
-        activity: 0,
-        autoRepairCost: 0,
-        autoAmmoCrewCost: 0,
-        researchedUnits: [],
-        researchingProgress: [],
-        session: '',
-        totalSL: 0,
-        totalCRP: 0,
-        totalRP: 0,
-        damagedVehicles: [],
-        detailedKills: [],
-        detailedAssists: [],
-        detailedSevereDamage: [],
-        detailedCriticalDamage: [],
-        detailedDamage: [],
-        detailedAwards: [],
-        detailedActivityTime: [],
-        detailedTimePlayed: [],
-        detailedSkillBonus: [],
-        // Enhanced vehicle information
-        vehicles: [],
-        vehicleIcons: {},
-        countryFlags: {}
+import {
+  SECTION_ALIASES,
+  SECTION_HEADER_RE,
+  INVALID_VEHICLE_TOKENS,
+  TIME_RE,
+  PERCENT_RE,
+  DIGIT_RE,
+  BattleResult,
+  SCHEMA_VERSION,
+} from './constants.js';
+import { lookupVehicle } from './vehicleRegistry.js';
+
+// ─── Config ───────────────────────────────────────────────────────────────────
+
+const DEBUG_MODE = false;
+const BLANK_RE = /^\s*$/;
+
+const STRIP_PREFIXES = [
+  /^shot\s+/i,
+  /^\(by another player\)\s*/i,
+  /^by another player\s*/i,
+  /^-\s*/,
+  /^:+\s*/,
+  /^with\s+/i,
+];
+
+// ─── Low-Level Text Utilities ─────────────────────────────────────────────────
+
+function normalizeText(raw) {
+  if (!raw) return '';
+  return String(raw)
+    .replace(/\r\n?/g, '\n')
+    .replace(/\t/g, '    ')
+    .replace(/[ \u00A0]+$/gm, '');
+}
+
+function collapse(text) {
+  return String(text || '').replace(/\s+/g, ' ').trim();
+}
+
+function isBlank(line) {
+  return !line || BLANK_RE.test(line);
+}
+
+function parseIntSafe(v, fallback = 0) {
+  if (typeof v === 'number') return Math.floor(v);
+  const cleaned = String(v || '').replace(/[^\d.-]/g, '');
+  const n = parseInt(cleaned, 10);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function parseFloatSafe(v, fallback = 0) {
+  if (typeof v === 'number') return v;
+  const cleaned = String(v || '').replace(/[^\d.-]/g, '');
+  const n = parseFloat(cleaned);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function timeToSeconds(str) {
+  if (!str) return 0;
+  const parts = String(str).trim().split(':').map(val => parseInt(val, 10));
+  if (parts.some(Number.isNaN)) return 0;
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  return 0;
+}
+
+function splitColumns(line) {
+  if (!line) return [];
+  return String(line)
+    .trim()
+    .split(/\s{2,}/)
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
+function isSectionHeader(line) {
+  return SECTION_HEADER_RE.test(String(line || '').trim());
+}
+
+function matchFirst(text, re) {
+  if (!text) return null;
+  return String(text).match(re);
+}
+
+// ─── CRITICAL FIX: Reward Value Extractor ─────────────────────────────────────
+
+/**
+ * Extracts the FINAL total value from a War Thunder reward column string.
+ *
+ * War Thunder logs include the full breakdown in detail lines:
+ *   "2574 SL"                                               → 2574
+ *   "1715 + (PA)859 = 2574 SL"                             → 2574
+ *   "52 + (PA)104 + (Booster)8 + (Talismans)52 = 216 RP"  → 216
+ *   "870 + (PA)435 = 1305 SL"                              → 1305
+ *
+ * The old approach (parseIntSafe on the full string) stripped ALL non-digits,
+ * concatenating every number in the expression and producing values like
+ * 17158592574 instead of 2574.  This function fixes that.
+ *
+ * @param {string} colStr  Raw column string from the log
+ * @returns {number}       The final/total value
+ */
+function extractRewardValue(colStr) {
+  if (!colStr) return 0;
+  const s = String(colStr).trim();
+
+  // Pattern 1: value after the last "=" sign, optionally followed by currency label
+  // Handles: "1715 + (PA)859 = 2574 SL"  →  2574
+  const eqMatch = s.match(/=\s*([\d,\s]+)\s*(?:SL|RP|CRP)?\s*$/i);
+  if (eqMatch) return parseIntSafe(eqMatch[1]);
+
+  // Pattern 2: simple "NNN [SL|RP|CRP]" with no breakdown
+  // Handles: "2574 SL"  →  2574
+  const simpleMatch = s.match(/^([\d,]+)\s*(?:SL|RP|CRP)?/i);
+  if (simpleMatch) return parseIntSafe(simpleMatch[1]);
+
+  // Final fallback: grab the last standalone integer in the string
+  const allNums = s.match(/\d+/g);
+  if (allNums) return parseInt(allNums[allNums.length - 1], 10) || 0;
+
+  return 0;
+}
+
+// ─── Vehicle & Weapon Normalization ───────────────────────────────────────────
+
+function cleanVehicleName(raw) {
+  let name = collapse(raw);
+  for (const re of STRIP_PREFIXES) name = name.replace(re, '');
+  return name.trim();
+}
+
+function isValidVehicleName(name) {
+  const clean = cleanVehicleName(name);
+  if (!clean || clean.length < 2) return false;
+  const lower = clean.toLowerCase();
+  if (INVALID_VEHICLE_TOKENS.has(lower)) return false;
+  if (TIME_RE.test(clean)) return false;
+  if (PERCENT_RE.test(clean)) return false;
+  if (DIGIT_RE.test(clean)) return false;
+  const forbiddenKeywords = [/mission points/i, /\bSL\b/i, /\bRP\b/i, /activity/i];
+  if (forbiddenKeywords.some(re => re.test(clean))) return false;
+  return true;
+}
+
+function cleanWeapon(raw) {
+  if (!raw) return '';
+  return collapse(raw).replace(/^shot\s*/i, 'shot ').trim();
+}
+
+function cleanTarget(raw) {
+  if (!raw) return '';
+  return collapse(raw)
+    .replace(/^shot\s+/i, '')
+    .replace(/^by another player\s*$/i, '')
+    .trim();
+}
+
+// ─── Section Management ───────────────────────────────────────────────────────
+
+function findSection(lines, aliases, startFrom = 0) {
+  const targets = Array.isArray(aliases) ? aliases : [aliases];
+  for (let i = Math.max(0, startFrom); i < lines.length; i++) {
+    const currentLine = lines[i].trim();
+    if (targets.some(alias => currentLine.includes(alias))) {
+      let end = lines.length;
+      for (let j = i + 1; j < lines.length; j++) {
+        if (isSectionHeader(lines[j])) { end = j; break; }
+      }
+      return { headingIndex: i, headingLine: lines[i], bodyLines: lines.slice(i + 1, end) };
+    }
+  }
+  return { headingIndex: -1, headingLine: '', bodyLines: [] };
+}
+
+// ─── Section Header Parsing ───────────────────────────────────────────────────
+
+function parseSectionHeader(line) {
+  const L = collapse(line);
+  const result = { count: 0, sl: 0, rp: 0, totalTime: 0 };
+  let m;
+
+  const standardPattern = /^(.+?)\s+(\d+)\s+(\d+)\s+SL\s+(\d+)\s+RP/i;
+  m = L.match(standardPattern);
+  if (m) {
+    result.count = parseIntSafe(m[2]);
+    result.sl    = parseIntSafe(m[3]);
+    result.rp    = parseIntSafe(m[4]);
+    return result;
+  }
+
+  if (L.includes('Awards')) {
+    m = L.match(/Awards\s+(\d+)\s+(\d+)\s+SL(?:\s+(\d+)\s+RP)?/i);
+    if (m) return { count: parseIntSafe(m[1]), sl: parseIntSafe(m[2]), rp: m[3] ? parseIntSafe(m[3]) : 0 };
+  }
+
+  if (L.includes('Activity Time')) {
+    m = L.match(/Activity Time\s+(\d+)\s+SL\s+(\d+)\s+RP/i);
+    if (m) return { count: 0, sl: parseIntSafe(m[1]), rp: parseIntSafe(m[2]) };
+  }
+
+  if (L.includes('Time Played')) {
+    m = L.match(/Time Played\s+(\d+:\d+)\s+(\d+)\s+RP/i);
+    if (m) return { count: 0, sl: 0, rp: parseIntSafe(m[2]), totalTime: timeToSeconds(m[1]) };
+  }
+
+  if (L.includes('Skill Bonus')) {
+    m = L.match(/Skill Bonus\s+(\d+)\s+RP/i);
+    if (m) return { count: 0, sl: 0, rp: parseIntSafe(m[1]) };
+  }
+
+  return result;
+}
+
+// ─── Detail Line Parsers ──────────────────────────────────────────────────────
+
+/**
+ * Parses individual combat event lines (kills, damage, assists, captures).
+ *
+ * FIXED v2.1.0: sl and rp now extracted via extractRewardValue() instead of
+ * parseIntSafe() to handle the "X + (PA)Y = Z SL" expanded reward format.
+ */
+function parseCombatLine(line, kind) {
+  const cols = splitColumns(line);
+  if (cols.length < 2) return null;
+
+  const time = cols[0];
+  if (!TIME_RE.test(time)) return null;
+  const timeSec = timeToSeconds(time);
+
+  // ── Capture lines ──────────────────────────────────────────────────────────
+  if (kind === 'capture') {
+    const pctIdx = cols.findIndex(c => PERCENT_RE.test(c));
+    const mptIdx = cols.findIndex(c => /mission points/i.test(c));
+    if (pctIdx === -1 || mptIdx === -1) return null;
+
+    const vehicle = cleanVehicleName(cols[1]);
+    if (!isValidVehicleName(vehicle)) return null;
+
+    return {
+      timeSec,
+      vehicle,
+      capturePercent: parseIntSafe(cols[pctIdx]),
+      missionPoints:  parseIntSafe(cols[mptIdx]),
+      sl: extractRewardValue(cols[mptIdx + 1] || '0'), // FIXED
+      rp: extractRewardValue(cols[mptIdx + 2] || '0'), // FIXED
     };
+  }
 
-    // Result
-    const resultMatch = logText.match(/(Defeat|Victory) in the \[(.+?)\] (.+?) mission!/);
-    if (resultMatch) {
-        battle.result = resultMatch[1];
-        battle.missionType = resultMatch[2];
-        battle.missionName = resultMatch[3];
+  // ── Standard combat events (kills, assists, damage) ────────────────────────
+  const mptIdx = cols.findIndex(c => /mission points/i.test(c));
+  const bypIdx = cols.findIndex(c => /by another player/i.test(c));
+
+  if (mptIdx !== -1) {
+    const vehicle = cleanVehicleName(cols[1] || '');
+    if (!isValidVehicleName(vehicle)) return null;
+
+    const payload = cols.slice(2, mptIdx);
+    const tail    = cols.slice(mptIdx);
+
+    let weapon = '';
+    let target = '';
+
+    if (payload.length >= 2) {
+      weapon = cleanWeapon(payload.slice(0, -1).join(' '));
+      target = cleanTarget(payload[payload.length - 1]);
+    } else if (payload.length === 1) {
+      weapon = cleanWeapon(payload[0]);
     }
 
-    // Destruction of aircraft
-    const aircraftKillsMatch = logText.match(/Destruction of aircraft\s+(\d+)\s*/);
-    if (aircraftKillsMatch) battle.killsAircraft = parseInt(aircraftKillsMatch[1], 10);
-    const aircraftKillsSection = logText.split('Destruction of aircraft')[1]?.split('Destruction of ground vehicles')[0] || '';
-    aircraftKillsSection.split('\n').forEach(line => {
-        const detailMatch = line.match(/^\s*(\d+:\d+)\s+(.+?)\s+(.+?)\s+(.+?)\s+By another player/);
-        if (detailMatch) {
-            battle.detailedKills.push({
-                type: 'aircraft',
-                time: detailMatch[1],
-                vehicle: detailMatch[2].trim(),
-                weapon: detailMatch[3].trim(),
-                target: detailMatch[4].trim()
-            });
-        }
-    });
+    return {
+      timeSec,
+      vehicle,
+      weapon,
+      target: cleanTarget(target),
+      missionPoints: parseIntSafe(tail[0] || '0'),
+      sl: extractRewardValue(tail[1] || '0'), // FIXED
+      rp: extractRewardValue(tail[2] || '0'), // FIXED
+    };
+  }
 
-    // Destruction of ground vehicles
-    const groundKillsMatch = logText.match(/Destruction of ground vehicles\s+(\d+)\s+(\d+)\s+SL\s+(\d+)\s+RP/);
-    if (groundKillsMatch) {
-        battle.killsGround = parseInt(groundKillsMatch[1], 10);
-        // SL and RP are total for the section, not individual kills
+  if (bypIdx !== -1) {
+    const vehicle = cleanVehicleName(cols[1] || '');
+    if (!isValidVehicleName(vehicle)) return null;
+    return {
+      timeSec,
+      vehicle,
+      weapon:          cleanWeapon(cols[2] || ''),
+      target:          cleanTarget(cols[3] || ''),
+      byAnotherPlayer: true,
+      sl: 0,
+      rp: 0,
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Parses Award lines.
+ * Example: "10:35    Adamant    300 + (PA)150 = 450 SL"
+ */
+function parseAwardLine(line) {
+  const L = collapse(line);
+  // Lazy-match award name, then grab the LAST number before "SL" (after "=")
+  // Works for both "300 SL" and "300 + (PA)150 = 450 SL" formats.
+  const m = L.match(/^(\d+:\d+)\s+(.+?)\s+(?:=\s*)?(\d[\d,]*)\s+SL(?:\s+(?:=\s*)?(\d[\d,]*)\s+RP)?$/i);
+  if (!m) return null;
+
+  // If the award name captured part of the breakdown, trim from last separator
+  let awardName = m[2].replace(/\s+[\d,]+\s*\+[^=]+$/, '').trim(); // strip inline breakdown
+  awardName = awardName.replace(/\s*=\s*$/, '').trim();
+
+  return {
+    timeSec: timeToSeconds(m[1]),
+    award:   awardName,
+    sl:      parseIntSafe(m[3]),
+    rp:      m[4] ? parseIntSafe(m[4]) : 0,
+  };
+}
+
+/**
+ * Parses vehicle-specific Activity Time lines.
+ *
+ * FIXED v2.1.0: Previous regex failed on expanded reward strings like
+ * "ADATS    1100 + (PA)1100 = 2200 SL    71 + (PA)71 + (Booster)8 = 150 RP"
+ *
+ * Now uses extractRewardValue() on each segment instead of a rigid regex.
+ */
+function parseActivityTimeLine(line) {
+  if (/^Time Played/i.test(line.trim())) return null;
+  const cols = splitColumns(line);
+  if (cols.length < 2) return null;
+
+  // First column is always the vehicle name
+  const vehicle = cleanVehicleName(cols[0]);
+  if (!isValidVehicleName(vehicle)) return null;
+
+  // Find the SL column (contains "SL") and RP column (contains "RP")
+  let sl = 0, rp = 0;
+  for (const col of cols.slice(1)) {
+    if (/SL/i.test(col))  sl = extractRewardValue(col); // FIXED
+    if (/\bRP\b/i.test(col)) rp = extractRewardValue(col); // FIXED
+  }
+
+  if (sl === 0 && rp === 0) return null; // probably a header or junk line
+
+  return { vehicle, sl, rp };
+}
+
+/**
+ * Parses vehicle-specific Time Played lines.
+ *
+ * FIXED v2.1.0: Same expanded-reward-string fix as parseActivityTimeLine.
+ * Example: "ADATS    58%    4:44    585 + (PA)585 + (Booster)59 = 1229 RP"
+ */
+function parseTimePlayedLine(line) {
+  const cols = splitColumns(line);
+  if (cols.length < 3) return null;
+
+  const vehicle = cleanVehicleName(cols[0]);
+  if (!isValidVehicleName(vehicle)) return null;
+
+  // Find percentage column
+  const pctCol = cols.find(c => PERCENT_RE.test(c));
+  if (!pctCol) return null;
+  const percentage = parseIntSafe(pctCol);
+
+  // Find time column (MM:SS)
+  const timeCol = cols.find(c => /^\d+:\d{2}$/.test(c.trim()));
+  const timeSec = timeCol ? timeToSeconds(timeCol) : 0;
+
+  // Find RP column and extract FINAL value using extractRewardValue
+  let rp = 0;
+  for (const col of cols) {
+    if (/\bRP\b/i.test(col)) { rp = extractRewardValue(col); break; } // FIXED
+  }
+
+  return { vehicle, percentage, timeSec, rp };
+}
+
+/**
+ * Parses Skill Bonus lines.
+ */
+function parseSkillBonusLine(line) {
+  const cols = splitColumns(line);
+  if (cols.length < 3) return null;
+  const vehicle = cleanVehicleName(cols[0]);
+  if (!isValidVehicleName(vehicle)) return null;
+  const bonusType = collapse(cols[1]);
+  const rp = parseIntSafe(cols[cols.length - 1]);
+  return { vehicle, bonusType, rp };
+}
+
+/**
+ * Parses RP research progress lines.
+ */
+function parseResearchProgressLine(line) {
+  const L = collapse(line);
+  const m = L.match(/^(.+?)\s*-\s*(.+?):\s*(\d+)\s+RP$/i);
+  if (!m) return null;
+  return {
+    unit: cleanVehicleName(m[1]),
+    item: cleanTarget(m[2]),
+    rp:   parseIntSafe(m[3]),
+  };
+}
+
+/**
+ * Parses fully researched unit lines.
+ */
+function parseResearchedUnitLine(line) {
+  const L = collapse(line);
+  const m = L.match(/^(.+?):\s*(\d+)\s+RP$/i);
+  if (!m) return null;
+  return {
+    unit: cleanVehicleName(m[1]),
+    rp:   parseIntSafe(m[2]),
+  };
+}
+
+// ─── High-Level Extraction ────────────────────────────────────────────────────
+
+function parseMissionHeader(text, battle) {
+  const m = text.match(/(Defeat|Victory) in the \[(.+?)\]\s+(.+?)\s+mission!/i);
+  if (m) {
+    battle.result      = m[1];
+    battle.missionType = m[2];
+    battle.missionName = m[3];
+  }
+}
+
+function parseMiscFields(text, battle) {
+  let m;
+
+  m = matchFirst(text, /Earned:\s+(\d[\d,]*)\s+SL,\s+(\d[\d,]*)\s+CRP/i);
+  if (m) { battle.earnedSL = parseIntSafe(m[1]); battle.earnedCRP = parseIntSafe(m[2]); }
+
+  m = matchFirst(text, /Activity:\s+(\d+)%/i);
+  if (m) battle.activity = parseIntSafe(m[1]);
+
+  m = matchFirst(text, /Damaged Vehicles:\s+(.+)/i);
+  if (m) {
+    battle.damagedVehicles = m[1].split(',').map(v => cleanVehicleName(v)).filter(Boolean);
+  }
+
+  m = matchFirst(text, /Automatic repair of all vehicles:\s+(-?\d[\d,]*)\s+SL/i);
+  if (m) battle.autoRepairCost = parseIntSafe(m[1]);
+
+  m = matchFirst(text, /Automatic purchasing of ammo and "Crew Replenishment":\s+(-?\d[\d,]*)\s+SL/i);
+  if (m) battle.autoAmmoCrewCost = parseIntSafe(m[1]);
+
+  m = matchFirst(text, /Session:\s+(.+)/i);
+  if (m) battle.session = m[1].trim();
+
+  m = matchFirst(text, /Total:\s+(\d[\d,]*)\s+SL,\s+(\d[\d,]*)\s+CRP,\s+(\d[\d,]*)\s+RP/i);
+  if (m) {
+    battle.totalSL  = parseIntSafe(m[1]);
+    battle.totalCRP = parseIntSafe(m[2]);
+    battle.totalRP  = parseIntSafe(m[3]);
+  }
+
+  m = matchFirst(text, /Reward for participating in the mission\s+(\d[\d,]*)\s+SL/i) ||
+      matchFirst(text, /Reward for winning\s+(\d[\d,]*)\s+SL/i);
+  if (m) battle.rewardSL = parseIntSafe(m[1]);
+}
+
+function parseSections(text, battle) {
+  const lines = text.split('\n');
+
+  const S = {
+    aircraftKills:       findSection(lines, SECTION_ALIASES.aircraftKills),
+    groundKills:         findSection(lines, SECTION_ALIASES.groundKills),
+    assists:             findSection(lines, SECTION_ALIASES.assists),
+    severeDamage:        findSection(lines, SECTION_ALIASES.severeDamage),
+    criticalDamage:      findSection(lines, SECTION_ALIASES.criticalDamage),
+    damage:              findSection(lines, SECTION_ALIASES.damage),
+    captures:            findSection(lines, SECTION_ALIASES.captures),
+    awards:              findSection(lines, SECTION_ALIASES.awards),
+    activityTime:        findSection(lines, SECTION_ALIASES.activityTime),
+    timePlayed:          findSection(lines, SECTION_ALIASES.timePlayed),
+    skillBonus:          findSection(lines, SECTION_ALIASES.skillBonus),
+    researchedUnit:      findSection(lines, SECTION_ALIASES.researchedUnit),
+    researchingProgress: findSection(lines, SECTION_ALIASES.researchingProgress),
+  };
+
+  // Map section headers to summary fields
+  const mapHeader = (section, fields) => {
+    if (section.headingIndex === -1) return;
+    const h = parseSectionHeader(section.headingLine);
+    if (fields.count) battle[fields.count] = h.count;
+    if (fields.sl)    battle[fields.sl]    = h.sl;
+    if (fields.rp)    battle[fields.rp]    = h.rp;
+    if (fields.time && h.totalTime) battle[fields.time] = h.totalTime;
+  };
+
+  mapHeader(S.aircraftKills,  { count: 'killsAircraft',   sl: 'killsAircraftSL',   rp: 'killsAircraftRP' });
+  mapHeader(S.groundKills,    { count: 'killsGround',     sl: 'killsGroundSL',     rp: 'killsGroundRP' });
+  mapHeader(S.assists,        { count: 'assists',         sl: 'assistsSL',         rp: 'assistsRP' });
+  mapHeader(S.severeDamage,   { count: 'severeDamage',    sl: 'severeDamageSL',    rp: 'severeDamageRP' });
+  mapHeader(S.criticalDamage, { count: 'criticalDamage',  sl: 'criticalDamageSL',  rp: 'criticalDamageRP' });
+  mapHeader(S.damage,         { count: 'damage',          sl: 'damageSL',          rp: 'damageRP' });
+  mapHeader(S.captures,       { count: 'captures',        sl: 'capturesSL',        rp: 'capturesRP' });
+  mapHeader(S.awards,         { count: 'awardsCount',     sl: 'awardsSL',          rp: 'awardsRP' });
+  mapHeader(S.activityTime,   { sl: 'activityTimeSL',     rp: 'activityTimeRP' });
+  mapHeader(S.timePlayed,     { rp: 'timePlayedRP',       time: 'totalTimeSec' });
+  mapHeader(S.skillBonus,     { rp: 'skillBonusRP' });
+
+  const processLines = (section, kind, parser, targetArray) => {
+    for (const line of section.bodyLines) {
+      if (isBlank(line)) continue;
+      const parsed = (kind === 'capture') ? parser(line, kind) :
+                     (kind === 'aircraft' || kind === 'ground' || kind === 'assist' ||
+                      kind === 'severe'   || kind === 'critical' || kind === 'damage')
+                       ? parser(line, kind)
+                       : parser(line);
+      if (parsed) {
+        if (kind === 'aircraft' || kind === 'ground') {
+          targetArray.push({ type: kind, ...parsed });
+        } else {
+          targetArray.push(parsed);
+        }
+      }
     }
-    const groundKillsSection = logText.split('Destruction of ground vehicles')[1]?.split('Assistance in destroying the enemy')[0] || '';
-    groundKillsSection.split('\n').forEach(line => {
-        const detailMatch = line.match(/^\s*(\d+:\d+)\s+(.+?)\s+(.+?)\s+(.+?)\s+(\d+)\s+mission points\s+(\d+)\s+SL\s+(\d+)\s+RP/);
-        if (detailMatch) {
-            battle.detailedKills.push({
-                type: 'ground',
-                time: detailMatch[1],
-                vehicle: detailMatch[2].trim(),
-                weapon: detailMatch[3].trim(),
-                target: detailMatch[4].trim(),
-                missionPoints: parseInt(detailMatch[5], 10),
-                sl: parseInt(detailMatch[6], 10),
-                rp: parseInt(detailMatch[7], 10)
-            });
-        }
-    });
+  };
 
-    // Assistance
-    const assistsMatch = logText.match(/Assistance in destroying the enemy\s+(\d+)\s+(\d+)\s+SL\s+(\d+)\s+RP/);
-    if (assistsMatch) battle.assists = parseInt(assistsMatch[1], 10);
-    const assistsSection = logText.split('Assistance in destroying the enemy')[1]?.split('Severe damage to the enemy')[0] || '';
-    assistsSection.split('\n').forEach(line => {
-        const detailMatch = line.match(/^\s*(\d+:\d+)\s+(.+?)\s+(.+?)\s+(.+?)\s+(\d+)\s+mission points\s+(\d+)\s+SL\s+(\d+)\s+RP/);
-        if (detailMatch) {
-            battle.detailedAssists.push({
-                time: detailMatch[1],
-                vehicle: detailMatch[2].trim(),
-                weapon: detailMatch[3].trim(),
-                target: detailMatch[4].trim(),
-                missionPoints: parseInt(detailMatch[5], 10),
-                sl: parseInt(detailMatch[6], 10),
-                rp: parseInt(detailMatch[7], 10)
-            });
-        }
-    });
+  processLines(S.aircraftKills,  'aircraft', parseCombatLine, battle.kills);
+  processLines(S.groundKills,    'ground',   parseCombatLine, battle.kills);
+  processLines(S.assists,        'assist',   parseCombatLine, battle.assists_detail);
+  processLines(S.severeDamage,   'severe',   parseCombatLine, battle.severeDamage_detail);
+  processLines(S.criticalDamage, 'critical', parseCombatLine, battle.criticalDamage_detail);
+  processLines(S.damage,         'damage',   parseCombatLine, battle.damage_detail);
+  processLines(S.captures,       'capture',  parseCombatLine, battle.captures_detail);
 
-    // Severe damage
-    const severeDamageMatch = logText.match(/Severe damage to the enemy\s+(\d+)\s+(\d+)\s+SL\s+(\d+)\s+RP/);
-    if (severeDamageMatch) battle.severeDamage = parseInt(severeDamageMatch[1], 10);
-    const severeDamageSection = logText.split('Severe damage to the enemy')[1]?.split('Critical damage to the enemy')[0] || '';
-    severeDamageSection.split('\n').forEach(line => {
-        const detailMatch = line.match(/^\s*(\d+:\d+)\s+(.+?)\s+(.+?)\s+(.+?)\s+(\d+)\s+mission points\s+(\d+)\s+SL\s+(\d+)\s+RP/);
-        if (detailMatch) {
-            battle.detailedSevereDamage.push({
-                time: detailMatch[1],
-                vehicle: detailMatch[2].trim(),
-                weapon: detailMatch[3].trim(),
-                target: detailMatch[4].trim(),
-                missionPoints: parseInt(detailMatch[5], 10),
-                sl: parseInt(detailMatch[6], 10),
-                rp: parseInt(detailMatch[7], 10)
-            });
-        }
-    });
+  processLines(S.awards,        null, parseAwardLine,          battle.awards_detail);
+  processLines(S.activityTime,  null, parseActivityTimeLine,   battle.activityTime_detail);
+  processLines(S.timePlayed,    null, parseTimePlayedLine,     battle.timePlayed_detail);
+  processLines(S.skillBonus,    null, parseSkillBonusLine,     battle.skillBonus_detail);
 
-    // Critical damage
-    const criticalDamageMatch = logText.match(/Critical damage to the enemy\s+(\d+)\s+(\d+)\s+SL\s+(\d+)\s+RP/);
-    if (criticalDamageMatch) battle.criticalDamage = parseInt(criticalDamageMatch[1], 10);
-    const criticalDamageSection = logText.split('Critical damage to the enemy')[1]?.split('Damage to the enemy')[0] || '';
-    criticalDamageSection.split('\n').forEach(line => {
-        const detailMatch = line.match(/^\s*(\d+:\d+)\s+(.+?)\s+(.+?)\s+(.+?)\s+(\d+)\s+mission points\s+(\d+)\s+SL\s+(\d+)\s+RP/);
-        if (detailMatch) {
-            battle.detailedCriticalDamage.push({
-                time: detailMatch[1],
-                vehicle: detailMatch[2].trim(),
-                weapon: detailMatch[3].trim(),
-                target: detailMatch[4].trim(),
-                missionPoints: parseInt(detailMatch[5], 10),
-                sl: parseInt(detailMatch[6], 10),
-                rp: parseInt(detailMatch[7], 10)
-            });
-        }
-    });
+  processLines(S.researchedUnit,      null, parseResearchedUnitLine,    battle.researchedUnits);
+  processLines(S.researchingProgress, null, parseResearchProgressLine,  battle.researchingProgress);
+}
 
-    // Damage
-    const damageMatch = logText.match(/Damage to the enemy\s+(\d+)\s+(\d+)\s+SL\s+(\d+)\s+RP/);
-    if (damageMatch) battle.damage = parseInt(damageMatch[1], 10);
-    const damageSection = logText.split('Damage to the enemy')[1]?.split('Awards')[0] || '';
-    damageSection.split('\n').forEach(line => {
-        const detailMatch = line.match(/^\s*(\d+:\d+)\s+(.+?)\s+(.+?)\s+(.+?)\s+(\d+)\s+mission points\s+(\d+)\s+SL\s+(\d+)\s+RP/);
-        if (detailMatch) {
-            battle.detailedDamage.push({
-                time: detailMatch[1],
-                vehicle: detailMatch[2].trim(),
-                weapon: detailMatch[3].trim(),
-                target: detailMatch[4].trim(),
-                missionPoints: parseInt(detailMatch[5], 10),
-                sl: parseInt(detailMatch[6], 10),
-                rp: parseInt(detailMatch[7], 10)
-            });
-        }
-    });
+// ─── Fallback Resilience ──────────────────────────────────────────────────────
 
-    // Awards
-    const awardsMatch = logText.match(/Awards\s+(\d+)\s+(\d+)\s+SL(?:\s+(\d+)\s+RP)?/); // Added optional RP capture
-    if (awardsMatch) {
-        battle.awardsSL = parseInt(awardsMatch[2], 10);
-        if (awardsMatch[3]) battle.awardsRP = parseInt(awardsMatch[3], 10); // Capture RP if present
+function applyHeaderFallbacks(text, battle) {
+  const ensure = (field, regex) => {
+    if (battle[field] === 0) {
+      const match = text.match(regex);
+      if (match) battle[field] = parseIntSafe(match[1]);
     }
-    const awardsSection = logText.split('Awards')[1]?.split('Activity Time')[0] || '';
-    awardsSection.split('\n').forEach(line => {
-        const detailMatch = line.match(/^\s*(\d+:\d+)\s+(.+?)\s+(\d+)\s+SL(?:\s+(\d+)\s+RP)?/); // Added optional RP capture
-        if (detailMatch) {
-            battle.detailedAwards.push({
-                time: detailMatch[1],
-                award: detailMatch[2].trim(),
-                sl: parseInt(detailMatch[3], 10),
-                rp: detailMatch[4] ? parseInt(detailMatch[4], 10) : 0 // Capture RP if present
-            });
-        }
+  };
+  ensure('killsAircraft',  /Destruction of aircraft\s+(\d+)\b/i);
+  ensure('killsGround',    /Destruction of ground (?:targets|vehicles)\s+(\d+)\b/i);
+  ensure('assists',        /Assistance in destroying the enemy\s+(\d+)\b/i);
+  ensure('severeDamage',   /Severe damage to the enemy\s+(\d+)\b/i);
+  ensure('criticalDamage', /Critical damage to the enemy\s+(\d+)\b/i);
+  ensure('damage',         /Damage to the enemy\s+(\d+)\b/i);
+}
+
+// ─── Vehicle Resolution ───────────────────────────────────────────────────────
+
+function extractUniqueVehicles(battle) {
+  const seenVehicles = new Map();
+
+  const consider = (rawName) => {
+    const clean = cleanVehicleName(rawName);
+    if (!isValidVehicleName(clean)) return;
+    const key = clean.toLowerCase().replace(/\s+/g, ' ');
+    if (!seenVehicles.has(key)) seenVehicles.set(key, lookupVehicle(clean));
+  };
+
+  const scanEventArray = (arr, primaryField = 'vehicle') => {
+    if (!Array.isArray(arr)) return;
+    arr.forEach(item => {
+      if (item?.[primaryField]) consider(item[primaryField]);
+      if (item?.target)         consider(item.target);
+      if (item?.unit)           consider(item.unit);
     });
+  };
 
-    // Activity Time
-    const activityTimeMatch = logText.match(/Activity Time\s+(\d+)\s+SL\s+(\d+)\s+RP/);
-    if (activityTimeMatch) {
-        battle.activityTimeSL = parseInt(activityTimeMatch[1], 10);
-        battle.activityTimeRP = parseInt(activityTimeMatch[2], 10);
-    }
-    const activityTimeSection = logText.split('Activity Time')[1]?.split('Time Played')[0] || '';
-    activityTimeSection.split('\n').forEach(line => {
-        const detailMatch = line.match(/^\s*(.+?)\s+(\d+)\s+SL\s+(\d+)\s+RP/);
-        if (detailMatch) {
-            battle.detailedActivityTime.push({
-                vehicle: detailMatch[1].trim(),
-                sl: parseInt(detailMatch[2], 10),
-                rp: parseInt(detailMatch[3], 10)
-            });
-        }
-    });
+  scanEventArray(battle.kills);
+  scanEventArray(battle.assists_detail);
+  scanEventArray(battle.severeDamage_detail);
+  scanEventArray(battle.criticalDamage_detail);
+  scanEventArray(battle.damage_detail);
+  scanEventArray(battle.captures_detail);
+  scanEventArray(battle.activityTime_detail);
+  scanEventArray(battle.timePlayed_detail);
+  scanEventArray(battle.skillBonus_detail);
+  scanEventArray(battle.researchedUnits, 'unit');
+  scanEventArray(battle.researchingProgress, 'unit');
 
-    // Time Played
-    const timePlayedMatch = logText.match(/Time Played\s+(\d+:\d+)\s+(\d+)\s+RP/);
-    if (timePlayedMatch) battle.timePlayedRP = parseInt(timePlayedMatch[2], 10);
-    const timePlayedSection = logText.split('Time Played')[1]?.split('Reward for participating in the mission')[0] || '';
-    timePlayedSection.split('\n').forEach(line => {
-        const detailMatch = line.match(/^\s*(.+?)\s+(\d+)%\s+(\d+:\d+)\s+(\d+)\s+RP/);
-        if (detailMatch) {
-            battle.detailedTimePlayed.push({
-                vehicle: detailMatch[1].trim(),
-                percentage: parseInt(detailMatch[2], 10),
-                time: detailMatch[3].trim(),
-                rp: parseInt(detailMatch[4], 10)
-            });
-        }
-    });
+  if (battle.damagedVehicles) battle.damagedVehicles.forEach(v => consider(v));
 
-    // Reward for participating / Reward for winning
-    const rewardParticipatingMatch = logText.match(/Reward for participating in the mission\s+(\d+)\s+SL/);
-    const rewardWinningMatch = logText.match(/Reward for winning\s+(\d+)\s+SL/);
-    if (rewardParticipatingMatch) battle.rewardSL = parseInt(rewardParticipatingMatch[1], 10);
-    else if (rewardWinningMatch) battle.rewardSL = parseInt(rewardWinningMatch[1], 10);
+  return Array.from(seenVehicles.values())
+    .sort((a, b) => a.displayName.localeCompare(b.displayName));
+}
 
-    // Skill Bonus
-    const skillBonusMatch = logText.match(/Skill Bonus\s+(\d+)\s+RP/);
-    if (skillBonusMatch) battle.skillBonusRP = parseInt(skillBonusMatch[1], 10);
-    const skillBonusSection = logText.split('Skill Bonus')[1]?.split('Earned:')[0] || '';
-    skillBonusSection.split('\n').forEach(line => {
-        const detailMatch = line.match(/^\s*(.+?)\s+(.+?)\s+(\d+)\s+RP/);
-        if (detailMatch) {
-            battle.detailedSkillBonus.push({
-                vehicle: detailMatch[1].trim(),
-                type: detailMatch[2].trim(),
-                rp: parseInt(detailMatch[3], 10)
-            });
-        }
-    });
+// ─── Fingerprinting ───────────────────────────────────────────────────────────
 
-    // Earned, Activity, Damaged Vehicles, Costs, Researched, Progress, Session, Total
-    const earnedMatch = logText.match(/Earned:\s+(\d+)\s+SL,\s+(\d+)\s+CRP/);
-    if (earnedMatch) {
-        battle.earnedSL = parseInt(earnedMatch[1], 10);
-        battle.earnedCRP = parseInt(earnedMatch[2], 10);
-    }
+/**
+ * Builds a collision-resistant fingerprint from stable battle fields.
+ * Used by battleStore to detect duplicates when the same log is imported
+ * in different forms (JSON file vs pasted text).
+ */
+export function buildFingerprint(battle) {
+  const salt = 'WT_STATS_v2';
+  return [
+    salt,
+    battle.session,
+    battle.missionName,
+    battle.missionType,
+    battle.result,
+    battle.totalSL,
+    battle.totalRP,
+    battle.earnedSL,
+    battle.killsAircraft,
+    battle.killsGround,
+    battle.assists,
+    battle.activity,
+  ].join('|');
+}
 
-    const activityMatch = logText.match(/Activity:\s+(\d+)%/);
-    if (activityMatch) battle.activity = parseInt(activityMatch[1], 10);
+function createId() {
+  if (typeof crypto !== 'undefined' && crypto?.randomUUID) return crypto.randomUUID();
+  return `battle_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
 
-    const damagedVehiclesMatch = logText.match(/Damaged Vehicles:\s+(.+)/);
-    if (damagedVehiclesMatch) {
-        battle.damagedVehicles = damagedVehiclesMatch[1].split(',').map(v => v.trim());
-    }
+// ─── Public API ───────────────────────────────────────────────────────────────
 
-    const autoRepairMatch = logText.match(/Automatic repair of all vehicles:\s+(-?\d+)\s+SL/);
-    if (autoRepairMatch) battle.autoRepairCost = parseInt(autoRepairMatch[1], 10);
+/**
+ * Main entry point. Parses raw WT log text into a structured battle object.
+ *
+ * @param {string} logText
+ * @returns {Object} Structured battle data
+ */
+export function parseBattleLog(logText) {
+  const text = normalizeText(logText);
+  if (isBlank(text)) throw new Error('Parser: received empty log text.');
 
-    const autoAmmoCrewMatch = logText.match(/Automatic purchasing of ammo and "Crew Replenishment":\s+(-?\d+)\s+SL/);
-    if (autoAmmoCrewMatch) battle.autoAmmoCrewCost = parseInt(autoAmmoCrewMatch[1], 10);
+  const battle = {
+    id:         createId(),
+    parsedAt:   new Date().toISOString(),
+    parsedFrom: 'text', // distinguishes from JSON imports — used by battleStore
+    version:    SCHEMA_VERSION,
 
-    const researchedUnitMatch = logText.match(/Researched unit:\s*\n\s*(.+?):\s*(\d+)\s+RP/);
-    if (researchedUnitMatch) {
-        battle.researchedUnits.push({
-            unit: researchedUnitMatch[1].trim(),
-            rp: parseInt(researchedUnitMatch[2], 10)
-        });
-    }
+    result:      BattleResult.UNKNOWN,
+    missionType: 'Unknown',
+    missionName: 'Unknown',
+    session:     '',
 
-    const researchingProgressSection = logText.split('Researching progress:')[1]?.split('Session:')[0] || '';
-    researchingProgressSection.split('\n').forEach(line => {
-        const detailMatch = line.match(/^\s*(.+?)\s*-\s*(.+?):\s*(\d+)\s+RP/);
-        if (detailMatch) {
-            battle.researchingProgress.push({
-                unit: detailMatch[1].trim(),
-                item: detailMatch[2].trim(),
-                rp: parseInt(detailMatch[3], 10)
-            });
-        }
-    });
+    killsAircraft: 0, killsAircraftSL: 0,  killsAircraftRP: 0,
+    killsGround:   0, killsGroundSL:   0,  killsGroundRP:   0,
+    assists:       0, assistsSL:       0,  assistsRP:       0,
+    severeDamage:  0, severeDamageSL:  0,  severeDamageRP:  0,
+    criticalDamage:0, criticalDamageSL:0,  criticalDamageRP: 0,
+    damage:        0, damageSL:        0,  damageRP:         0,
+    captures:      0, capturesSL:      0,  capturesRP:       0,
+    awardsCount:   0, awardsSL:        0,  awardsRP:         0,
 
-    const sessionMatch = logText.match(/Session:\s+(.+)/);
-    if (sessionMatch) battle.session = sessionMatch[1].trim();
+    activityTimeSL: 0, activityTimeRP: 0,
+    timePlayedRP:   0, totalTimeSec:   0,
+    skillBonusRP:   0,
+    activity:       0,
 
-    const totalMatch = logText.match(/Total:\s+(\d+)\s+SL,\s+(\d+)\s+CRP,\s+(\d+)\s+RP/);
-    if (totalMatch) {
-        battle.totalSL = parseInt(totalMatch[1], 10);
-        battle.totalCRP = parseInt(totalMatch[2], 10);
-        battle.totalRP = parseInt(totalMatch[3], 10);
-    }
+    rewardSL:         0,
+    earnedSL:         0,
+    earnedCRP:        0,
+    autoRepairCost:   0,
+    autoAmmoCrewCost: 0,
+    totalSL:          0,
+    totalCRP:         0,
+    totalRP:          0,
 
-    // Extract and enhance vehicle information
-    battle.vehicles = extractVehiclesFromBattle(battle);
-    battle.vehicleIcons = generateVehicleIcons(battle.vehicles);
-    battle.countryFlags = generateCountryFlags(battle.vehicles);
-    
-    return battle;
-};
+    researchedUnits:     [],
+    researchingProgress: [],
+    damagedVehicles:     [],
 
-// Extract all vehicles mentioned in the battle
-const extractVehiclesFromBattle = (battle) => {
-    const vehicles = new Set();
-    
-    // Extract from detailed kills
-    battle.detailedKills.forEach(kill => {
-        if (kill.vehicle) vehicles.add(kill.vehicle);
-        if (kill.target) vehicles.add(kill.target);
-    });
-    
-    // Extract from detailed assists
-    battle.detailedAssists.forEach(assist => {
-        if (assist.vehicle) vehicles.add(assist.vehicle);
-        if (assist.target) vehicles.add(assist.target);
-    });
-    
-    // Extract from detailed damage sections
-    battle.detailedSevereDamage.forEach(damage => {
-        if (damage.vehicle) vehicles.add(damage.vehicle);
-        if (damage.target) vehicles.add(damage.target);
-    });
-    
-    battle.detailedCriticalDamage.forEach(damage => {
-        if (damage.vehicle) vehicles.add(damage.vehicle);
-        if (damage.target) vehicles.add(damage.target);
-    });
-    
-    battle.detailedDamage.forEach(damage => {
-        if (damage.vehicle) vehicles.add(damage.vehicle);
-        if (damage.target) vehicles.add(damage.target);
-    });
-    
-    // Extract from activity time
-    battle.detailedActivityTime.forEach(activity => {
-        if (activity.vehicle) vehicles.add(activity.vehicle);
-    });
-    
-    // Extract from time played
-    battle.detailedTimePlayed.forEach(time => {
-        if (time.vehicle) vehicles.add(time.vehicle);
-    });
-    
-    // Extract from skill bonus
-    battle.detailedSkillBonus.forEach(skill => {
-        if (skill.vehicle) vehicles.add(skill.vehicle);
-    });
-    
-    // Convert to array and enhance with vehicle info
-    return Array.from(vehicles).map(vehicleName => {
-        const vehicleInfo = extractVehicleInfo(vehicleName);
-        return {
-            name: vehicleName,
-            ...vehicleInfo
-        };
-    });
-};
+    kills:                 [],
+    assists_detail:        [],
+    severeDamage_detail:   [],
+    criticalDamage_detail: [],
+    damage_detail:         [],
+    captures_detail:       [],
+    awards_detail:         [],
+    activityTime_detail:   [],
+    timePlayed_detail:     [],
+    skillBonus_detail:     [],
 
-// Generate vehicle icons for all vehicles in the battle
-const generateVehicleIcons = (vehicles) => {
-    const icons = {};
-    vehicles.forEach(vehicle => {
-        icons[vehicle.name] = {
-            icon: getVehicleIcon(vehicle.name, vehicle.country, vehicle.rank, vehicle.type),
-            info: vehicle
-        };
-    });
-    return icons;
-};
+    vehicles:    [],
+    fingerprint: '',
+  };
 
-// Generate country flags for all countries in the battle
-const generateCountryFlags = (vehicles) => {
-    const countries = new Set(vehicles.map(v => v.country).filter(c => c));
-    const flags = {};
-    countries.forEach(country => {
-        flags[country] = getCountryFlag(country);
-    });
-    return flags;
-}; 
+  try {
+    parseMissionHeader(text, battle);
+    parseSections(text, battle);
+    parseMiscFields(text, battle);
+    applyHeaderFallbacks(text, battle);
+    battle.vehicles    = extractUniqueVehicles(battle);
+    battle.fingerprint = buildFingerprint(battle);
+
+    if (DEBUG_MODE) console.log(`[Parser] Processed: ${battle.id} — ${battle.missionName}`);
+  } catch (err) {
+    console.error('[Parser] Fatal error:', err);
+    throw err;
+  }
+
+  return battle;
+}
+
+export { lookupVehicle } from './vehicleRegistry.js';

@@ -1,438 +1,962 @@
-import React, { useState } from 'react';
-import { Users, Upload, Download, FileText, Settings } from 'lucide-react';
-import { showMessage } from '../utils/helpers';
+/**
+ * DataManagementPage.js  v3.0
+ * Full-width overhaul — WTTheme consistent, lazy-loaded sections,
+ * rich backup/restore with V1/V2 breakdown, seamless navbar integration.
+ */
+
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import {
+  Users, Upload, Download, Settings, Plus, Shield,
+  ChevronDown, ChevronUp, Database, Package, HardDrive,
+  Check, AlertTriangle, Info, FileJson, FileArchive,
+  Sword, Target, DollarSign, Zap, Clock, BarChart2,
+  RefreshCw, Trash2, Lock, Unlock, CheckSquare, Square,
+  ArrowRight, Eye, EyeOff, Copy, ExternalLink, Layers,
+  Server, Wifi, WifiOff, Globe, Terminal,
+} from 'lucide-react';
+import { notify } from '../utils/notifications';
+import {
+  StyleInjector, SectionHeader, WTSpinner, EmptyState,
+  useInView, THEME, fmt, fmtK,
+} from '../styles/wtTheme';
+import { LazySection } from '../utils/loading';
 import UserProfileEditor from './UserProfileEditor';
 import BattleDataEntryComponent from './BattleDataEntry';
 
-const DataManagementPage = ({ users, setUsers, selectedUserId, setSelectedUserId, battleDataInput, setBattleDataInput, handleProcessBattleData, loading }) => {
-    const [exportFormat, setExportFormat] = useState('v2'); // 'v1' or 'v2'
-    const [exportNotes, setExportNotes] = useState('');
-    const [exportCategories, setExportCategories] = useState(['all']); // ['all', 'users', 'battles', 'stats']
+// ─── Inline page styles ───────────────────────────────────────────────────────
 
-    // Generate unique filename with timestamp and counter
-    const generateFilename = (format, notes = '') => {
-        const now = new Date();
-        const dateStr = now.toISOString().slice(0, 10); // YYYY-MM-DD
-        const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '-'); // HH-MM-SS
-        const timestamp = `${dateStr}_${timeStr}`;
-        
-        let filename = `war_thunder_stats_backup_${format.toUpperCase()}_${timestamp}`;
-        
-        if (notes.trim()) {
-            const cleanNotes = notes.trim().replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '_').substring(0, 30);
-            filename += `_${cleanNotes}`;
-        }
-        
-        return `${filename}.json`;
-    };
-
-    // V1 Export (current format - single line JSON)
-    const handleExportDataV1 = () => {
-        try {
-            const data = sessionStorage.getItem('warThunderUsers');
-            if (!data) {
-                showMessage("No data to export.", "error");
-                return;
-            }
-            const blob = new Blob([data], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = generateFilename('v1');
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            showMessage("Data exported successfully in V1 format!");
-        } catch (error) {
-            console.error("Error exporting data:", error);
-            showMessage("Failed to export data.", "error");
-        }
-    };
-
-    // V2 Export (improved format - organized and readable)
-    const handleExportDataV2 = () => {
-        try {
-            const data = sessionStorage.getItem('warThunderUsers');
-            if (!data) {
-                showMessage("No data to export.", "error");
-                return;
-            }
-
-            const usersData = JSON.parse(data);
-            const exportDate = new Date().toISOString();
-
-            // Create V2 backup structure
-            const v2Backup = {
-                metadata: {
-                    version: "2.0",
-                    exportDate: exportDate,
-                    exportFormat: "v2",
-                    notes: exportNotes.trim() || null,
-                    categories: exportCategories,
-                    totalUsers: usersData.length,
-                    totalBattles: usersData.reduce((sum, user) => sum + (user.battles?.length || 0), 0),
-                    application: "War Thunder Stats Tracker",
-                    compatibility: {
-                        v1: true,
-                        v2: true
-                    }
-                },
-                summary: {
-                    users: usersData.map(user => ({
-                        id: user.id,
-                        name: user.name,
-                        title: user.title,
-                        level: user.level,
-                        rank: user.rank,
-                        squadron: user.squadron,
-                        battleCount: user.battles?.length || 0,
-                        totalEarnedSL: user.battles?.reduce((sum, battle) => sum + (battle.earnedSL || 0), 0) || 0,
-                        totalEarnedRP: user.battles?.reduce((sum, battle) => sum + (battle.totalRP || 0), 0) || 0,
-                        victories: user.battles?.filter(battle => battle.result === 'Victory').length || 0,
-                        defeats: user.battles?.filter(battle => battle.result === 'Defeat').length || 0
-                    }))
-                },
-                data: {
-                    users: exportCategories.includes('all') || exportCategories.includes('users') ? usersData : [],
-                    battles: exportCategories.includes('all') || exportCategories.includes('battles') ? 
-                        usersData.flatMap(user => 
-                            (user.battles || []).map(battle => ({
-                                ...battle,
-                                userId: user.id,
-                                userName: user.name
-                            }))
-                        ) : [],
-                    stats: exportCategories.includes('all') || exportCategories.includes('stats') ? 
-                        usersData.map(user => ({
-                            userId: user.id,
-                            userName: user.name,
-                            stats: calculateUserStats(user.battles || [])
-                        })) : []
-                },
-                categories: {
-                    missionTypes: getUniqueValues(usersData, 'battles', 'missionType'),
-                    missionNames: getUniqueValues(usersData, 'battles', 'missionName'),
-                    vehicles: getUniqueVehicles(usersData),
-                    awards: getUniqueAwards(usersData)
-                }
-            };
-
-            const jsonString = JSON.stringify(v2Backup, null, 2);
-            const blob = new Blob([jsonString], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = generateFilename('v2', exportNotes);
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            showMessage("Data exported successfully in V2 format!");
-        } catch (error) {
-            console.error("Error exporting data:", error);
-            showMessage("Failed to export data.", "error");
-        }
-    };
-
-    // Helper function to calculate user stats
-    const calculateUserStats = (battles) => {
-        if (!battles || battles.length === 0) return {};
-        
-        const totalBattles = battles.length;
-        const victories = battles.filter(b => b.result === 'Victory').length;
-        const defeats = battles.filter(b => b.result === 'Defeat').length;
-        const winRate = totalBattles > 0 ? (victories / totalBattles * 100).toFixed(2) : 0;
-        
-        const totalKills = battles.reduce((sum, b) => sum + (b.killsAircraft || 0) + (b.killsGround || 0), 0);
-        const totalAssists = battles.reduce((sum, b) => sum + (b.assists || 0), 0);
-        const totalEarnedSL = battles.reduce((sum, b) => sum + (b.earnedSL || 0), 0);
-        const totalEarnedRP = battles.reduce((sum, b) => sum + (b.totalRP || 0), 0);
-        
-        return {
-            totalBattles,
-            victories,
-            defeats,
-            winRate: parseFloat(winRate),
-            totalKills,
-            totalAssists,
-            totalEarnedSL,
-            totalEarnedRP,
-            averageKills: totalBattles > 0 ? (totalKills / totalBattles).toFixed(2) : 0,
-            averageAssists: totalBattles > 0 ? (totalAssists / totalBattles).toFixed(2) : 0,
-            averageEarnedSL: totalBattles > 0 ? Math.round(totalEarnedSL / totalBattles) : 0,
-            averageEarnedRP: totalBattles > 0 ? Math.round(totalEarnedRP / totalBattles) : 0
-        };
-    };
-
-    // Helper function to get unique values from battles
-    const getUniqueValues = (users, battleField, valueField) => {
-        const values = new Set();
-        users.forEach(user => {
-            if (user[battleField]) {
-                user[battleField].forEach(battle => {
-                    if (battle[valueField]) {
-                        values.add(battle[valueField]);
-                    }
-                });
-            }
-        });
-        return Array.from(values).sort();
-    };
-
-    // Helper function to get unique vehicles
-    const getUniqueVehicles = (users) => {
-        const vehicles = new Set();
-        users.forEach(user => {
-            if (user.battles) {
-                user.battles.forEach(battle => {
-                    if (battle.damagedVehicles) {
-                        battle.damagedVehicles.forEach(vehicle => vehicles.add(vehicle));
-                    }
-                });
-            }
-        });
-        return Array.from(vehicles).sort();
-    };
-
-    // Helper function to get unique awards
-    const getUniqueAwards = (users) => {
-        const awards = new Set();
-        users.forEach(user => {
-            if (user.battles) {
-                user.battles.forEach(battle => {
-                    if (battle.detailedAwards) {
-                        battle.detailedAwards.forEach(award => awards.add(award.award));
-                    }
-                });
-            }
-        });
-        return Array.from(awards).sort();
-    };
-
-    const handleExportData = () => {
-        if (exportFormat === 'v1') {
-            handleExportDataV1();
-        } else {
-            handleExportDataV2();
-        }
-    };
-
-    const handleImportData = (event) => {
-        const file = event.target.files[0];
-        if (!file) {
-            showMessage("No file selected.", "error");
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const importedData = JSON.parse(e.target.result);
-                
-                // Handle V2 format
-                if (importedData.metadata && importedData.metadata.version === "2.0") {
-                    if (importedData.data && importedData.data.users) {
-                        sessionStorage.setItem('warThunderUsers', JSON.stringify(importedData.data.users));
-                        setUsers(importedData.data.users);
-                        showMessage(`V2 data imported successfully! ${importedData.metadata.totalUsers} users, ${importedData.metadata.totalBattles} battles. Page will reload to apply changes.`);
-                        window.location.reload();
-                        return;
-                    }
-                }
-                
-                // Handle V1 format (backward compatibility)
-                if (Array.isArray(importedData) && importedData.every(user => user.id && user.name && Array.isArray(user.battles))) {
-                    sessionStorage.setItem('warThunderUsers', JSON.stringify(importedData));
-                    setUsers(importedData);
-                    showMessage("V1 data imported successfully! Page will reload to apply changes.");
-                    window.location.reload();
-                } else {
-                    showMessage("Invalid file format. Please import a valid War Thunder stats JSON.", "error");
-                }
-            } catch (error) {
-                console.error("Error importing data:", error);
-                showMessage("Failed to import data. Ensure it's a valid JSON file.", "error");
-            }
-        };
-        reader.readAsText(file);
-    };
-
-    return (
-        <div className="w-full max-w-6xl bg-gray-800 p-8 rounded-xl shadow-lg mb-8 text-gray-100 border-2 border-gray-700 animate-fade-in">
-            <h2 className="text-3xl font-bold text-yellow-400 mb-6 flex items-center space-x-2">
-                <Users size={24} /> <span>Data Management & Profiles</span>
-            </h2>
-
-            <UserProfileEditor
-                users={users}
-                setUsers={setUsers}
-                selectedUserId={selectedUserId}
-                setSelectedUserId={setSelectedUserId}
-            />
-
-            <BattleDataEntryComponent
-                users={users}
-                selectedUserId={selectedUserId}
-                setSelectedUserId={setSelectedUserId}
-                battleDataInput={battleDataInput}
-                setBattleDataInput={setBattleDataInput}
-                handleProcessBattleData={handleProcessBattleData}
-                loading={loading}
-            />
-
-            <div className="bg-gray-800 p-8 rounded-xl shadow-lg border border-gray-700 mb-8">
-                <h3 className="text-2xl font-bold text-yellow-400 mb-6 flex items-center space-x-2">
-                    <Upload size={24} /> <Download size={24} className="ml-1" /> <span>Backup and Restore Data</span>
-                </h3>
-                
-                {/* Export Settings */}
-                <div className="mb-6 bg-gray-900 p-6 rounded-xl shadow-inner border border-gray-700">
-                    <h4 className="text-xl font-semibold text-yellow-300 mb-4 flex items-center space-x-2">
-                        <Settings size={20} /> <span>Export Settings</span>
-                    </h4>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div>
-                            <label className="block text-gray-300 text-sm font-bold mb-2">Export Format:</label>
-                            <div className="flex space-x-4">
-                                <label className="flex items-center">
-                                    <input
-                                        type="radio"
-                                        value="v2"
-                                        checked={exportFormat === 'v2'}
-                                        onChange={(e) => setExportFormat(e.target.value)}
-                                        className="mr-2"
-                                    />
-                                    <span className="text-gray-300">V2 (Recommended)</span>
-                                </label>
-                                <label className="flex items-center">
-                                    <input
-                                        type="radio"
-                                        value="v1"
-                                        checked={exportFormat === 'v1'}
-                                        onChange={(e) => setExportFormat(e.target.value)}
-                                        className="mr-2"
-                                    />
-                                    <span className="text-gray-300">V1 (Legacy)</span>
-                                </label>
-                            </div>
-                        </div>
-                        
-                        {exportFormat === 'v2' && (
-                            <div>
-                                <label className="block text-gray-300 text-sm font-bold mb-2">Export Categories:</label>
-                                <div className="flex flex-wrap gap-2">
-                                    {['all', 'users', 'battles', 'stats'].map(category => (
-                                        <label key={category} className="flex items-center">
-                                            <input
-                                                type="checkbox"
-                                                checked={exportCategories.includes(category)}
-                                                onChange={(e) => {
-                                                    if (category === 'all') {
-                                                        setExportCategories(e.target.checked ? ['all'] : []);
-                                                    } else {
-                                                        setExportCategories(prev => {
-                                                            const newCats = prev.filter(c => c !== 'all');
-                                                            if (e.target.checked) {
-                                                                return [...newCats, category];
-                                                            } else {
-                                                                return newCats.filter(c => c !== category);
-                                                            }
-                                                        });
-                                                    }
-                                                }}
-                                                className="mr-1"
-                                            />
-                                            <span className="text-gray-300 text-sm capitalize">{category}</span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                    
-                    {exportFormat === 'v2' && (
-                        <div className="mb-4">
-                            <label className="block text-gray-300 text-sm font-bold mb-2">Export Notes (Optional):</label>
-                            <input
-                                type="text"
-                                value={exportNotes}
-                                onChange={(e) => setExportNotes(e.target.value)}
-                                placeholder="e.g., Pre-update backup, Major changes, etc."
-                                className="w-full p-2 rounded bg-gray-800 border border-gray-600 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                maxLength={50}
-                            />
-                        </div>
-                    )}
-                </div>
-
-                <div className="mb-6 bg-gray-900 p-6 rounded-xl shadow-inner border border-gray-700">
-                    <h4 className="text-xl font-semibold text-yellow-300 mb-3">Export Data</h4>
-                    <p className="text-gray-300 mb-4">
-                        {exportFormat === 'v2' 
-                            ? "Download your data in the new V2 format with better organization, categories, and metadata."
-                            : "Download all your saved user and battle data to your computer as a JSON file for safekeeping."
-                        }
-                    </p>
-                    <button
-                        onClick={handleExportData}
-                        className="w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition duration-300 transform hover:scale-105 flex items-center justify-center space-x-2"
-                    >
-                        <Download size={20} /> <span>Export Data to PC ({exportFormat.toUpperCase()})</span>
-                    </button>
-                </div>
-
-                <div className="mb-6 bg-gray-900 p-6 rounded-xl shadow-inner border border-gray-700">
-                    <h4 className="text-xl font-semibold text-yellow-300 mb-3">Import Data</h4>
-                    <p className="text-gray-300 mb-4">
-                        Upload a previously exported JSON file to restore your data. Supports both V1 and V2 formats. <span className="font-bold text-red-400">This will overwrite your current data.</span>
-                    </p>
-                    <input
-                        type="file"
-                        accept=".json"
-                        onChange={handleImportData}
-                        className="block w-full text-sm text-gray-300
-                                   file:mr-4 file:py-2 file:px-4
-                                   file:rounded-xl file:border-0
-                                   file:text-sm file:font-semibold
-                                   file:bg-green-700 file:text-white
-                                   hover:file:bg-green-800
-                                   transition duration-300 ease-in-out"
-                    />
-                </div>
-
-                {/* Format Comparison */}
-                <div className="bg-gray-900 p-6 rounded-xl shadow-inner border border-gray-700">
-                    <h4 className="text-xl font-semibold text-yellow-300 mb-4 flex items-center space-x-2">
-                        <FileText size={20} /> <span>Format Comparison</span>
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                        <div>
-                            <h5 className="font-bold text-blue-400 mb-2">V1 Format (Legacy)</h5>
-                            <ul className="text-gray-300 space-y-1">
-                                <li>• Single-line JSON</li>
-                                <li>• Basic data structure</li>
-                                <li>• Smaller file size</li>
-                                <li>• Less readable</li>
-                                <li>• No metadata</li>
-                            </ul>
-                        </div>
-                        <div>
-                            <h5 className="font-bold text-green-400 mb-2">V2 Format (Recommended)</h5>
-                            <ul className="text-gray-300 space-y-1">
-                                <li>• Formatted, readable JSON</li>
-                                <li>• Organized categories</li>
-                                <li>• Metadata and notes</li>
-                                <li>• Summary statistics</li>
-                                <li>• Better organization</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+const PAGE_STYLES = `
+  .dm-page-header {
+    background: linear-gradient(180deg,
+      rgba(7,10,13,0.98) 0%,
+      rgba(13,17,23,0.96) 60%,
+      rgba(13,17,23,0.0) 100%
     );
+    padding: 28px 32px 36px;
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid rgba(245,158,11,0.1);
+    margin-bottom: 0;
+  }
+  .dm-page-header::before {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg,
+      transparent 0%, rgba(245,158,11,0.5) 30%,
+      rgba(251,191,36,0.8) 50%, rgba(245,158,11,0.5) 70%,
+      transparent 100%
+    );
+    animation: wt-shimmer 4s linear infinite;
+    background-size: 200% 100%;
+  }
+  .dm-page-header::after {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 220px; height: 220px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(245,158,11,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .dm-section-wrapper {
+    border: 1px solid rgba(245,158,11,0.12);
+    border-radius: 12px;
+    background: var(--wt-bg-panel);
+    overflow: hidden;
+    margin-bottom: 16px;
+    transition: border-color 0.22s ease, box-shadow 0.22s ease;
+  }
+  .dm-section-wrapper:hover {
+    border-color: rgba(245,158,11,0.22);
+    box-shadow: 0 0 24px rgba(245,158,11,0.04);
+  }
+
+  .dm-section-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    cursor: pointer;
+    transition: background 0.18s ease;
+    user-select: none;
+    border-bottom: 1px solid transparent;
+  }
+  .dm-section-toggle:hover { background: rgba(245,158,11,0.03); }
+  .dm-section-toggle.open { border-bottom-color: rgba(245,158,11,0.08); }
+
+  .dm-stat-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+  }
+
+  .dm-quick-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 14px 20px;
+    background: rgba(0,0,0,0.25);
+    border: 1px solid rgba(245,158,11,0.08);
+    border-radius: 10px;
+    min-width: 90px;
+    transition: all 0.2s ease;
+  }
+  .dm-quick-stat:hover {
+    border-color: rgba(245,158,11,0.2);
+    background: rgba(245,158,11,0.04);
+  }
+
+  /* Export option checkbox */
+  .dm-export-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.05);
+    background: rgba(0,0,0,0.15);
+    cursor: pointer;
+    transition: all 0.18s ease;
+  }
+  .dm-export-option:hover {
+    border-color: rgba(245,158,11,0.25);
+    background: rgba(245,158,11,0.04);
+  }
+  .dm-export-option.checked {
+    border-color: rgba(245,158,11,0.35);
+    background: rgba(245,158,11,0.07);
+  }
+
+  /* Format card */
+  .dm-format-card {
+    border-radius: 10px;
+    padding: 16px;
+    border: 2px solid transparent;
+    background: rgba(0,0,0,0.2);
+    cursor: pointer;
+    transition: all 0.22s cubic-bezier(0.4,0,0.2,1);
+  }
+  .dm-format-card:hover { border-color: rgba(245,158,11,0.2); }
+  .dm-format-card.selected {
+    border-color: #f59e0b;
+    background: rgba(245,158,11,0.06);
+    box-shadow: 0 0 16px rgba(245,158,11,0.1);
+  }
+
+  /* Drop zone */
+  .dm-drop-zone {
+    border: 2px dashed rgba(245,158,11,0.25);
+    border-radius: 10px;
+    padding: 36px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.22s ease;
+    background: rgba(0,0,0,0.1);
+  }
+  .dm-drop-zone:hover, .dm-drop-zone.drag-over {
+    border-color: rgba(245,158,11,0.6);
+    background: rgba(245,158,11,0.05);
+    box-shadow: 0 0 20px rgba(245,158,11,0.08);
+  }
+
+  /* Storage bar */
+  .dm-storage-bar {
+    height: 6px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .dm-storage-fill {
+    height: 100%;
+    border-radius: 3px;
+    animation: wt-bar-grow 1s cubic-bezier(0.34,1.56,0.64,1) both;
+    animation-delay: 0.3s;
+  }
+`;
+
+// ─── Collapsible Section ─────────────────────────────────────────────────────
+
+const Section = ({
+  id, title, icon: Icon, color = '#f59e0b',
+  children, defaultOpen = true, badge, sub,
+}) => {
+  const [open, setOpen] = useState(defaultOpen);
+  const [ref, vis] = useInView(0.05);
+
+  return (
+    <div
+      ref={ref}
+      className="dm-section-wrapper"
+      style={{
+        opacity: vis ? 1 : 0,
+        transform: vis ? 'translateY(0)' : 'translateY(20px)',
+        transition: 'opacity 0.5s ease, transform 0.5s cubic-bezier(0.34,1.56,0.64,1)',
+      }}
+    >
+      <div
+        className={`dm-section-toggle ${open ? 'open' : ''}`}
+        onClick={() => setOpen(o => !o)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={e => e.key === 'Enter' && setOpen(o => !o)}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {/* Color accent bar */}
+          <div style={{
+            width: 3, height: 24, background: color,
+            borderRadius: 2, boxShadow: `0 0 8px ${color}88`, flexShrink: 0,
+          }} />
+          {/* Icon with glow circle */}
+          <div style={{
+            width: 36, height: 36, borderRadius: 8,
+            background: `${color}15`, border: `1px solid ${color}30`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
+          }}>
+            {Icon && <Icon size={18} style={{ color }} />}
+          </div>
+          <div>
+            <div style={{
+              fontFamily: "'Rajdhani'", fontWeight: 800, fontSize: 16,
+              color: '#e2e8f0', letterSpacing: '0.05em', textTransform: 'uppercase',
+            }}>{title}</div>
+            {sub && (
+              <div style={{ fontSize: 11, color: '#475569', fontFamily: "'Exo 2'", marginTop: 1 }}>
+                {sub}
+              </div>
+            )}
+          </div>
+          {badge !== undefined && (
+            <span className="dm-stat-pill" style={{
+              background: `${color}15`, border: `1px solid ${color}35`, color,
+            }}>
+              {badge}
+            </span>
+          )}
+        </div>
+
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8, color: '#475569',
+        }}>
+          <span style={{ fontSize: 11, fontFamily: "'Share Tech Mono'", letterSpacing: '0.06em' }}>
+            {open ? 'COLLAPSE' : 'EXPAND'}
+          </span>
+          <div style={{
+            width: 28, height: 28, borderRadius: 6,
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'transform 0.25s ease',
+            transform: open ? 'rotate(0deg)' : 'rotate(-90deg)',
+          }}>
+            <ChevronDown size={16} />
+          </div>
+        </div>
+      </div>
+
+      {open && (
+        <div style={{ animation: 'wt-slide-down 0.3s cubic-bezier(0.4,0,0.2,1) both' }}>
+          {children}
+        </div>
+      )}
+    </div>
+  );
 };
 
-export default DataManagementPage; 
+// ─── Format Comparison Card ───────────────────────────────────────────────────
+
+const FormatCard = ({ id, selected, onClick, children }) => (
+  <div className={`dm-format-card ${selected ? 'selected' : ''}`} onClick={() => onClick(id)}>
+    {children}
+  </div>
+);
+
+// ─── Export Option Row ────────────────────────────────────────────────────────
+
+const ExportOption = ({ id, label, sub, icon: Icon, checked, onChange, color = '#f59e0b', disabled }) => (
+  <div
+    className={`dm-export-option ${checked ? 'checked' : ''}`}
+    onClick={() => !disabled && onChange(id)}
+    style={{ opacity: disabled ? 0.4 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }}
+  >
+    <div style={{ marginTop: 2, flexShrink: 0 }}>
+      {checked
+        ? <CheckSquare size={18} style={{ color }} />
+        : <Square size={18} style={{ color: '#475569' }} />
+      }
+    </div>
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+        {Icon && <Icon size={13} style={{ color, flexShrink: 0 }} />}
+        <span style={{ fontFamily: "'Rajdhani'", fontWeight: 700, fontSize: 13, color: '#e2e8f0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          {label}
+        </span>
+      </div>
+      {sub && <p style={{ margin: 0, fontSize: 11, color: '#475569', fontFamily: "'Exo 2'", lineHeight: 1.4 }}>{sub}</p>}
+    </div>
+  </div>
+);
+
+// ─── Backup & Restore Section ─────────────────────────────────────────────────
+
+const BackupRestoreSection = ({ users }) => {
+  const [exportFormat, setExportFormat] = useState('v2');
+  const [exportNotes, setExportNotes] = useState('');
+  const [dragOver, setDragOver] = useState(false);
+  const [importResult, setImportResult] = useState(null);
+  const fileRef = useRef(null);
+
+  // Per-category export options
+  const [exportOptions, setExportOptions] = useState({
+    userProfiles: true,
+    battleData:   true,
+    battleDetails: true,   // v2 only: detailed events arrays
+    vehicleInfo:  true,    // v2 only: vehicle metadata
+    fingerprints: true,    // v2 only: dedup indices
+    metadata:     true,    // v2 only: timestamp, totals
+  });
+
+  const toggleOption = useCallback((id) => {
+    setExportOptions(prev => ({ ...prev, [id]: !prev[id] }));
+  }, []);
+
+  const storageKB = (() => {
+    try {
+      const raw = sessionStorage.getItem('warThunderUsers') || '';
+      return Math.round((raw.length * 2) / 1024);
+    } catch { return 0; }
+  })();
+
+  const totalBattles = users.reduce((s, u) => s + (u.battles?.length || 0), 0);
+  const storagePct   = Math.min((storageKB / 5120) * 100, 100); // 5MB quota estimate
+
+  const generateFilename = () => {
+    const d = new Date();
+    const stamp = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const note  = exportNotes.trim() ? `_${exportNotes.trim().replace(/[^a-zA-Z0-9]/g,'_').slice(0,20)}` : '';
+    return `wt_stats_${exportFormat.toUpperCase()}_${stamp}${note}.json`;
+  };
+
+  const handleExport = useCallback(() => {
+    try {
+      const raw = sessionStorage.getItem('warThunderUsers');
+      if (!raw) { notify('No data to export.', 'error'); return; }
+
+      const usersData = JSON.parse(raw);
+
+      if (exportFormat === 'v1') {
+        // V1: bare array, minimal — just profile + battles summary
+        const v1Data = usersData.map(u => ({
+          id: u.id,
+          name: u.name,
+          title: u.title,
+          level: u.level,
+          gaijinId: u.gaijinId,
+          rank: u.rank,
+          favoriteVehicle: u.favoriteVehicle,
+          squadron: u.squadron,
+          battles: exportOptions.battleData ? u.battles : [],
+        }));
+        const blob = new Blob([JSON.stringify(v1Data, null, 2)], { type: 'application/json' });
+        _downloadBlob(blob, generateFilename());
+        notify(`V1 export complete — ${usersData.length} users, ${totalBattles} battles.`, 'success');
+        return;
+      }
+
+      // V2: structured with metadata and configurable content
+      const now = new Date().toISOString();
+      const processedUsers = usersData.map(u => {
+        const battles = exportOptions.battleData
+          ? (u.battles || []).map(b => {
+              const battle = { ...b };
+              if (!exportOptions.battleDetails) {
+                // Strip heavy detail arrays
+                delete battle.kills;
+                delete battle.assists_detail;
+                delete battle.severeDamage_detail;
+                delete battle.criticalDamage_detail;
+                delete battle.damage_detail;
+                delete battle.captures_detail;
+                delete battle.awards_detail;
+                delete battle.activityTime_detail;
+                delete battle.timePlayed_detail;
+                delete battle.skillBonus_detail;
+                // Also old-format fields
+                delete battle.detailedKills;
+                delete battle.detailedAssists;
+                delete battle.detailedSevereDamage;
+                delete battle.detailedCriticalDamage;
+                delete battle.detailedDamage;
+                delete battle.detailedAwards;
+                delete battle.detailedActivityTime;
+                delete battle.detailedTimePlayed;
+                delete battle.detailedSkillBonus;
+              }
+              if (!exportOptions.vehicleInfo) {
+                delete battle.vehicles;
+              }
+              if (!exportOptions.fingerprints) {
+                delete battle.fingerprint;
+              }
+              if (!exportOptions.metadata) {
+                delete battle.parsedAt;
+                delete battle.version;
+              }
+              return battle;
+            })
+          : [];
+
+        const profile = exportOptions.userProfiles
+          ? { id: u.id, name: u.name, title: u.title, level: u.level, gaijinId: u.gaijinId, rank: u.rank, favoriteVehicle: u.favoriteVehicle, squadron: u.squadron }
+          : { id: u.id, name: u.name };
+
+        return { ...profile, battles };
+      });
+
+      const v2Export = {
+        metadata: {
+          version:      '2.0',
+          exportDate:   now,
+          exportFormat: 'wt-stats-v2',
+          notes:        exportNotes.trim() || null,
+          application:  "War Thunder Stats Tracker by Nan's Studios",
+          includedData: exportOptions,
+          summary: {
+            totalUsers:   usersData.length,
+            totalBattles,
+            storageKB,
+          },
+        },
+        data: { users: processedUsers },
+      };
+
+      const blob = new Blob([JSON.stringify(v2Export, null, 2)], { type: 'application/json' });
+      _downloadBlob(blob, generateFilename());
+      notify(`V2 export complete — ${usersData.length} pilots, ${totalBattles} battles.`, 'success');
+    } catch (e) {
+      notify(`Export failed: ${e.message}`, 'error');
+    }
+  }, [exportFormat, exportNotes, exportOptions, users, totalBattles, storageKB]);
+
+  const _downloadBlob = (blob, filename) => {
+    const url = URL.createObjectURL(blob);
+    const a   = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const processImportFile = useCallback((file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+
+        // V2 format
+        if (data.metadata?.version === '2.0' && data.data?.users) {
+          const { totalUsers, totalBattles: tb } = data.metadata.summary || {};
+          sessionStorage.setItem('warThunderUsers', JSON.stringify(data.data.users));
+          setImportResult({
+            ok: true,
+            type: 'V2',
+            notes: data.metadata.notes,
+            users: totalUsers ?? data.data.users.length,
+            battles: tb ?? 0,
+            date: data.metadata.exportDate,
+          });
+          notify(`V2 import: ${data.data.users.length} pilots. Reloading…`, 'success');
+          setTimeout(() => window.location.reload(), 1500);
+          return;
+        }
+
+        // V1 format — bare array
+        if (Array.isArray(data) && data.every(u => u.id && u.name)) {
+          const battles = data.reduce((s, u) => s + (u.battles?.length || 0), 0);
+          sessionStorage.setItem('warThunderUsers', JSON.stringify(data));
+          setImportResult({ ok: true, type: 'V1', users: data.length, battles });
+          notify(`V1 import: ${data.length} pilots. Reloading…`, 'success');
+          setTimeout(() => window.location.reload(), 1500);
+          return;
+        }
+
+        setImportResult({ ok: false, error: 'Unrecognised file format. Must be V1 or V2 export.' });
+        notify('Invalid file format.', 'error');
+      } catch (err) {
+        setImportResult({ ok: false, error: err.message });
+        notify(`Import failed: ${err.message}`, 'error');
+      }
+    };
+    reader.readAsText(file);
+  }, []);
+
+  const handleFileInput = (e) => { processImportFile(e.target.files?.[0]); e.target.value = ''; };
+  const handleDrop = (e) => {
+    e.preventDefault(); setDragOver(false);
+    processImportFile(e.dataTransfer.files?.[0]);
+  };
+
+  return (
+    <div style={{ padding: '24px' }}>
+      {/* Storage indicator */}
+      <div style={{
+        background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(245,158,11,0.08)',
+        borderRadius: 10, padding: '16px 20px', marginBottom: 24,
+        display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <HardDrive size={20} style={{ color: '#f59e0b' }} />
+          <span style={{ fontFamily: "'Rajdhani'", fontSize: 13, color: '#e2e8f0', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Session Storage</span>
+        </div>
+        <div style={{ flex: 1, minWidth: 120 }}>
+          <div className="dm-storage-bar">
+            <div className="dm-storage-fill" style={{
+              width: `${storagePct}%`,
+              background: storagePct > 80 ? '#ef4444' : storagePct > 60 ? '#f59e0b' : '#22c55e',
+            }} />
+          </div>
+        </div>
+        <span style={{ fontFamily: "'Share Tech Mono'", fontSize: 13, color: '#f59e0b', flexShrink: 0 }}>
+          {storageKB} KB / ~5 MB
+        </span>
+        <div style={{ display: 'flex', gap: 16, flexShrink: 0 }}>
+          <span style={{ fontSize: 11, color: '#64748b', fontFamily: "'Exo 2'" }}>{users.length} pilots</span>
+          <span style={{ fontSize: 11, color: '#64748b', fontFamily: "'Exo 2'" }}>{totalBattles} battles</span>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24 }}>
+
+        {/* ── EXPORT ── */}
+        <div>
+          {/* Format selection */}
+          <div style={{ fontFamily: "'Rajdhani'", fontSize: 11, color: '#f59e0b', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Download size={13} /> Export Data
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+            <FormatCard id="v2" selected={exportFormat === 'v2'} onClick={setExportFormat}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <FileJson size={18} style={{ color: '#f59e0b' }} />
+                <span style={{ fontFamily: "'Rajdhani'", fontWeight: 800, fontSize: 14, color: '#f59e0b', textTransform: 'uppercase' }}>V2 Format</span>
+                <span style={{ marginLeft: 'auto', fontSize: 9, color: '#22c55e', fontFamily: "'Rajdhani'", fontWeight: 700, background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 3, padding: '1px 5px', textTransform: 'uppercase' }}>
+                  Recommended
+                </span>
+              </div>
+              <ul style={{ margin: 0, padding: '0 0 0 16px', fontSize: 11, color: '#64748b', fontFamily: "'Exo 2'", lineHeight: 1.6 }}>
+                <li>Metadata envelope with export date, notes, summary</li>
+                <li>Configurable content (see checkboxes below)</li>
+                <li>Self-describing — easy to inspect</li>
+                <li>Supports future migration tools</li>
+              </ul>
+            </FormatCard>
+
+            <FormatCard id="v1" selected={exportFormat === 'v1'} onClick={setExportFormat}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <FileArchive size={18} style={{ color: '#94a3b8' }} />
+                <span style={{ fontFamily: "'Rajdhani'", fontWeight: 800, fontSize: 14, color: '#94a3b8', textTransform: 'uppercase' }}>V1 Format</span>
+                <span style={{ marginLeft: 'auto', fontSize: 9, color: '#94a3b8', fontFamily: "'Rajdhani'", fontWeight: 700, background: 'rgba(148,163,184,0.08)', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 3, padding: '1px 5px', textTransform: 'uppercase' }}>
+                  Legacy
+                </span>
+              </div>
+              <ul style={{ margin: 0, padding: '0 0 0 16px', fontSize: 11, color: '#64748b', fontFamily: "'Exo 2'", lineHeight: 1.6 }}>
+                <li>Bare JSON array — smallest file size</li>
+                <li>No metadata, limited content control</li>
+                <li>Best for raw data transfer or debugging</li>
+                <li>Always importable regardless of version</li>
+              </ul>
+            </FormatCard>
+          </div>
+
+          {/* Notes input */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: 10, fontFamily: "'Rajdhani'", fontWeight: 600, color: '#64748b', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+              Export Notes (optional)
+            </label>
+            <input
+              type="text"
+              className="wt-input"
+              value={exportNotes}
+              onChange={e => setExportNotes(e.target.value)}
+              placeholder="e.g. pre-patch-backup, testing..."
+              maxLength={40}
+            />
+          </div>
+
+          {/* Content options (V2 only) */}
+          {exportFormat === 'v2' && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 10, fontFamily: "'Rajdhani'", fontWeight: 600, color: '#64748b', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>
+                Include in Export
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <ExportOption
+                  id="userProfiles"
+                  label="Pilot Profiles"
+                  sub="Name, level, Gaijin ID, rank, squadron, etc."
+                  icon={Users}
+                  checked={exportOptions.userProfiles}
+                  onChange={toggleOption}
+                  color="#f59e0b"
+                  disabled={true} // Always included
+                />
+                <ExportOption
+                  id="battleData"
+                  label="Battle Records"
+                  sub="All battle summary data (kills, SL, RP, result…)"
+                  icon={Sword}
+                  checked={exportOptions.battleData}
+                  onChange={toggleOption}
+                  color="#ef4444"
+                />
+                <ExportOption
+                  id="battleDetails"
+                  label="Detailed Combat Events"
+                  sub="Individual kill/damage/capture event arrays — larger file"
+                  icon={Target}
+                  checked={exportOptions.battleDetails && exportOptions.battleData}
+                  onChange={toggleOption}
+                  color="#f97316"
+                  disabled={!exportOptions.battleData}
+                />
+                <ExportOption
+                  id="vehicleInfo"
+                  label="Vehicle Metadata"
+                  sub="Vehicle country, type, rank lookup data per battle"
+                  icon={Shield}
+                  checked={exportOptions.vehicleInfo && exportOptions.battleData}
+                  onChange={toggleOption}
+                  color="#3b82f6"
+                  disabled={!exportOptions.battleData}
+                />
+                <ExportOption
+                  id="fingerprints"
+                  label="Dedup Fingerprints"
+                  sub="Session hashes to prevent duplicate imports"
+                  icon={Lock}
+                  checked={exportOptions.fingerprints && exportOptions.battleData}
+                  onChange={toggleOption}
+                  color="#a855f7"
+                  disabled={!exportOptions.battleData}
+                />
+                <ExportOption
+                  id="metadata"
+                  label="Parse Metadata"
+                  sub="parsedAt timestamp, version string per battle"
+                  icon={Clock}
+                  checked={exportOptions.metadata && exportOptions.battleData}
+                  onChange={toggleOption}
+                  color="#22c55e"
+                  disabled={!exportOptions.battleData}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Export button */}
+          <button
+            className="wt-btn wt-btn-primary"
+            onClick={handleExport}
+            style={{ width: '100%', justifyContent: 'center', height: 46 }}
+          >
+            <Download size={16} />
+            Export to PC — {generateFilename().length > 30 ? generateFilename().slice(0,30)+'…' : generateFilename()}
+          </button>
+        </div>
+
+        {/* ── IMPORT ── */}
+        <div>
+          <div style={{ fontFamily: "'Rajdhani'", fontSize: 11, color: '#22c55e', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Upload size={13} /> Restore from Backup
+          </div>
+
+          {/* Format comparison table */}
+          <div style={{
+            background: 'rgba(0,0,0,0.2)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.05)',
+            marginBottom: 16, overflow: 'hidden',
+          }}>
+            <div style={{ padding: '10px 14px', background: 'rgba(0,0,0,0.15)', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+              <span style={{ fontFamily: "'Rajdhani'", fontSize: 12, color: '#f59e0b', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                Format Comparison
+              </span>
+            </div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+              <thead>
+                <tr>
+                  {['Feature', 'V1 Legacy', 'V2 Standard'].map((h, i) => (
+                    <th key={h} style={{ padding: '8px 12px', textAlign: i === 0 ? 'left' : 'center', color: '#64748b', fontFamily: "'Rajdhani'", fontWeight: 600, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  ['Metadata envelope', '✗', '✓'],
+                  ['Export notes / date', '✗', '✓'],
+                  ['Battle detail events', '✓', 'Optional'],
+                  ['Vehicle metadata', 'Basic', '✓ Full'],
+                  ['Dedup fingerprints', '✗', 'Optional'],
+                  ['Import compatibility', '✓', '✓'],
+                  ['File size', 'Smallest', 'Configurable'],
+                ].map(([feat, v1, v2], i) => (
+                  <tr key={feat} style={{ background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
+                    <td style={{ padding: '7px 12px', color: '#94a3b8', fontFamily: "'Exo 2'" }}>{feat}</td>
+                    <td style={{ padding: '7px 12px', textAlign: 'center', color: v1 === '✓' ? '#22c55e' : v1 === '✗' ? '#ef4444' : '#f59e0b', fontFamily: "'Share Tech Mono'" }}>{v1}</td>
+                    <td style={{ padding: '7px 12px', textAlign: 'center', color: v2 === '✓' || v2 === '✓ Full' ? '#22c55e' : v2 === '✗' ? '#ef4444' : '#f59e0b', fontFamily: "'Share Tech Mono'" }}>{v2}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Drop zone */}
+          <div
+            className={`dm-drop-zone ${dragOver ? 'drag-over' : ''}`}
+            onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={handleDrop}
+            onClick={() => fileRef.current?.click()}
+            style={{ marginBottom: 12 }}
+          >
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".json"
+              onChange={handleFileInput}
+              style={{ display: 'none' }}
+            />
+            <Upload size={28} style={{ color: '#f59e0b', marginBottom: 10, opacity: dragOver ? 1 : 0.5 }} />
+            <div style={{ fontFamily: "'Rajdhani'", fontWeight: 700, fontSize: 14, color: '#e2e8f0', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+              {dragOver ? 'Drop to Import' : 'Drop JSON here or click to browse'}
+            </div>
+            <div style={{ fontSize: 11, color: '#475569', fontFamily: "'Exo 2'" }}>
+              Supports V1 and V2 export files. Accepts .json only.
+            </div>
+          </div>
+
+          {/* Import result */}
+          {importResult && (
+            <div style={{
+              padding: '12px 16px', borderRadius: 8, marginBottom: 12,
+              background: importResult.ok ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)',
+              border: `1px solid ${importResult.ok ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`,
+              animation: 'wt-fade-in 0.35s ease both',
+            }}>
+              {importResult.ok ? (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                    <Check size={14} style={{ color: '#22c55e' }} />
+                    <span style={{ fontFamily: "'Rajdhani'", fontWeight: 700, fontSize: 13, color: '#22c55e', textTransform: 'uppercase' }}>
+                      {importResult.type} Import Successful
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 11, color: '#64748b', fontFamily: "'Exo 2'" }}>
+                    {importResult.users} pilots · {importResult.battles} battles
+                    {importResult.notes && ` · "${importResult.notes}"`}
+                  </div>
+                  <div style={{ fontSize: 10, color: '#475569', fontFamily: "'Share Tech Mono'", marginTop: 4 }}>
+                    Reloading page…
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                  <AlertTriangle size={14} style={{ color: '#ef4444', flexShrink: 0, marginTop: 1 }} />
+                  <div>
+                    <span style={{ fontFamily: "'Rajdhani'", fontWeight: 700, fontSize: 13, color: '#ef4444', textTransform: 'uppercase' }}>Import Failed</span>
+                    <p style={{ margin: '4px 0 0', fontSize: 11, color: '#64748b', fontFamily: "'Exo 2'" }}>{importResult.error}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Warning */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 14px', background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.18)', borderRadius: 8 }}>
+            <AlertTriangle size={14} style={{ color: '#f59e0b', flexShrink: 0, marginTop: 1 }} />
+            <span style={{ fontSize: 11, color: '#94a3b8', fontFamily: "'Exo 2'", lineHeight: 1.5 }}>
+              Importing will <strong style={{ color: '#f59e0b' }}>overwrite all current data</strong> and reload the page. Back up first if needed.
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
+const DataManagementPage = ({
+  users, setUsers,
+  selectedUserId, setSelectedUserId,
+  battleDataInput, setBattleDataInput,
+  handleProcessBattleData, loading,
+}) => {
+  const totalBattles  = users.reduce((s, u) => s + (u.battles?.length || 0), 0);
+  const totalVictories = users.reduce((s, u) => s + (u.battles?.filter(b => b.result === 'Victory')?.length || 0), 0);
+
+  const [headerRef, headerVis] = useInView(0.05);
+
+  return (
+    <div className="wt-page wt-hex-bg" style={{ minHeight: '100vh', paddingBottom: 80 }}>
+      <StyleInjector />
+      <style>{PAGE_STYLES}</style>
+
+      {/* ── Page Header — tight to navbar ─────────────────────────────────── */}
+      <div
+        ref={headerRef}
+        className="dm-page-header"
+        style={{
+          opacity: headerVis ? 1 : 0,
+          transform: headerVis ? 'none' : 'translateY(-12px)',
+          transition: 'opacity 0.45s ease, transform 0.45s cubic-bezier(0.34,1.56,0.64,1)',
+        }}
+      >
+        {/* Background hex dots */}
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(245,158,11,0.04) 1px, transparent 0)', backgroundSize: '24px 24px', pointerEvents: 'none' }} />
+
+        <div style={{ position: 'relative', maxWidth: '100%' }}>
+          {/* Title row */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
+            <div style={{ position: 'relative' }}>
+              <div style={{
+                width: 48, height: 48, borderRadius: 10,
+                background: 'linear-gradient(135deg, rgba(245,158,11,0.2), rgba(245,158,11,0.05))',
+                border: '1px solid rgba(245,158,11,0.35)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 0 20px rgba(245,158,11,0.15)',
+              }}>
+                <Settings size={24} style={{ color: '#f59e0b', filter: 'drop-shadow(0 0 8px rgba(245,158,11,0.5))' }} />
+              </div>
+              {/* Pulsing ring */}
+              <div style={{ position: 'absolute', inset: -4, border: '1px solid rgba(245,158,11,0.15)', borderRadius: 14, animation: 'wt-pulse-amber 2.5s ease-in-out infinite' }} />
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <h1
+                  className="wt-display wt-glow-amber"
+                  style={{ margin: 0, fontSize: 28, color: '#f59e0b', letterSpacing: '0.06em', lineHeight: 1 }}
+                >
+                  DATA MANAGEMENT
+                </h1>
+                <span style={{ fontSize: 10, color: '#475569', fontFamily: "'Share Tech Mono'", letterSpacing: '0.12em', background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.15)', borderRadius: 4, padding: '2px 8px', textTransform: 'uppercase' }}>
+                  v3.0
+                </span>
+              </div>
+              <p style={{ margin: '4px 0 0', fontSize: 11, color: '#475569', fontFamily: "'Share Tech Mono'", letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                PROFILES · BATTLE IMPORT · BACKUP &amp; RESTORE
+              </p>
+            </div>
+          </div>
+
+          {/* Quick stats row */}
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            {[
+              { label: 'Pilots',    value: users.length,    icon: Users,    color: '#f59e0b' },
+              { label: 'Battles',   value: totalBattles,    icon: Sword,    color: '#3b82f6' },
+              { label: 'Victories', value: totalVictories,  icon: Check,    color: '#22c55e' },
+              { label: 'Defeats',   value: totalBattles - totalVictories, icon: Target, color: '#ef4444' },
+            ].map(({ label, value, icon: Icon, color }, i) => (
+              <div
+                key={label}
+                className="dm-quick-stat"
+                style={{
+                  opacity: headerVis ? 1 : 0,
+                  transform: headerVis ? 'none' : 'translateY(10px)',
+                  transition: `all 0.45s ease ${0.1 + i * 0.07}s`,
+                }}
+              >
+                <Icon size={16} style={{ color }} />
+                <span style={{ fontFamily: "'Share Tech Mono'", fontSize: 20, color, fontWeight: 700, lineHeight: 1 }}>
+                  {value}
+                </span>
+                <span style={{ fontSize: 9, color: '#475569', fontFamily: "'Rajdhani'", fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                  {label}
+                </span>
+              </div>
+            ))}
+
+            {/* API status indicator */}
+            <div className="dm-quick-stat" style={{ borderColor: 'rgba(100,116,139,0.15)', opacity: 0.7 }}>
+              <WifiOff size={16} style={{ color: '#475569' }} />
+              <span style={{ fontFamily: "'Share Tech Mono'", fontSize: 11, color: '#475569', fontWeight: 700, lineHeight: 1, textAlign: 'center' }}>
+                LOCAL
+              </span>
+              <span style={{ fontSize: 9, color: '#334155', fontFamily: "'Rajdhani'", fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                Storage
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Page Content — full width ──────────────────────────────────────── */}
+      <div style={{ padding: '20px 24px' }}>
+
+        {/* Pilot Profiles */}
+        <Section
+          id="profiles"
+          title="Pilot Profiles"
+          icon={Users}
+          color="#f59e0b"
+          badge={users.length}
+          sub="Manage pilot identities and profile metadata"
+          defaultOpen={true}
+        >
+          <div style={{ padding: '0 0 4px' }}>
+            <UserProfileEditor
+              users={users}
+              setUsers={setUsers}
+              selectedUserId={selectedUserId}
+              setSelectedUserId={setSelectedUserId}
+            />
+          </div>
+        </Section>
+
+        {/* Battle Data Entry */}
+        <Section
+          id="battle-entry"
+          title="Add Battle Data"
+          icon={Database}
+          color="#3b82f6"
+          sub="Paste battle logs, set timestamps per-battle, commit to records"
+          defaultOpen={true}
+        >
+          <BattleDataEntryComponent
+            users={users}
+            selectedUserId={selectedUserId}
+            setSelectedUserId={setSelectedUserId}
+            battleDataInput={battleDataInput}
+            setBattleDataInput={setBattleDataInput}
+            handleProcessBattleData={handleProcessBattleData}
+            loading={loading}
+          />
+        </Section>
+
+        {/* Backup & Restore */}
+        <Section
+          id="backup"
+          title="Backup & Restore"
+          icon={Package}
+          color="#22c55e"
+          sub="Export to PC, import from file — V1 legacy &amp; V2 structured formats"
+          defaultOpen={false}
+        >
+          <BackupRestoreSection users={users} />
+        </Section>
+
+      </div>
+    </div>
+  );
+};
+
+export default DataManagementPage;
