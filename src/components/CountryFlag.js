@@ -52,7 +52,7 @@ const CountryFlag = ({
     'medium': 'w-8 h-6',
     'lg': 'w-12 h-8',
     'xl': 'w-16 h-12',
-    '2xl': 'w-20 h-15'
+    '2xl': 'w-20 h-16'
   };
 
   // Country labels for tooltips

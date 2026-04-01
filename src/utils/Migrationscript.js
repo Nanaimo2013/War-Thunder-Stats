@@ -463,5 +463,3 @@ export function validateBattle(battle) {
 
   return problems;
 }
-
-const MAX_SANE_REWARD = 10_000_000;

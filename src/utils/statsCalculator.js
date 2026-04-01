@@ -622,7 +622,7 @@ export function filterBattles(battles, filters = {}) {
 
     if (filters.vehicle) {
       const v = filters.vehicle.toLowerCase();
-      if (!(b.vehicles || []).some(vv => vv.displayName.toLowerCase().includes(v))) return false;
+      if (!(b.vehicles || []).some(vv => vv.displayName?.toLowerCase().includes(v))) return false;
     }
 
     if (filters.country) {
@@ -676,15 +676,35 @@ export function addBattleToStats() { return null; }
 export function finaliseStats(agg) {
   const n = agg.totalBattles;
   if (n === 0) return agg;
+  
+  // Standard Averages
   agg.averageActivity  = agg.totalActivityPercent / n;
-  agg.averageEarnedSL  = agg.totalEarnedSL        / n;
-  agg.averageEarnedCRP = agg.totalEarnedCRP        / n;
-  agg.averageTotalRP   = agg.totalRP               / n;
-  agg.averageTotalSL   = agg.totalSL               / n;
-  agg.averageKills     = agg.totalKills            / n;
+  agg.averageEarnedSL  = agg.totalEarnedSL / n;
+  agg.averageEarnedCRP = agg.totalEarnedCRP / n;
+  agg.averageTotalRP   = agg.totalRP / n;
+  agg.averageTotalSL   = agg.totalSL / n;
+  agg.averageKills     = agg.totalKills / n;
+  agg.averageAssists   = agg.totalAssists / n;   // Added
+  agg.averageCaptures  = agg.totalCaptures / n;  // Added
+  agg.averageTimeSec   = agg.totalTimeSec / n;   // Added
+
+  // Efficiency
+  const totalMinutes = agg.totalTimeSec / 60;
+  agg.slPerMinute = totalMinutes > 0 ? agg.totalEarnedSL / totalMinutes : 0;
+  agg.rpPerMinute = totalMinutes > 0 ? agg.totalRP / totalMinutes : 0;
+
   const v = agg.results[BattleResult.VICTORY] || 0;
   const d = v + (agg.results[BattleResult.DEFEAT] || 0);
   agg.winRate = d > 0 ? (v / d) * 100 : 0;
+
+  // Finalise map/mode winrates
+  [agg.winRateByMap, agg.winRateByMode].forEach(collection => {
+    if (!collection) return;
+    Object.values(collection).forEach(entry => {
+      entry.rate = entry.total > 0 ? (entry.wins / entry.total) * 100 : 0;
+    });
+  });
+
   return agg;
 }
 

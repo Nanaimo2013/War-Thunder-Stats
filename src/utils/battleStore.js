@@ -371,7 +371,7 @@ class BattleStore {
       if (filters.missionType && b.missionType !== filters.missionType) return false;
       if (filters.vehicle) {
         const v = filters.vehicle.toLowerCase();
-        if (!(b.vehicles || []).some(vv => vv.displayName.toLowerCase().includes(v))) return false;
+        if (!(b.vehicles || []).some(vv => vv.displayName?.toLowerCase().includes(v))) return false;
       }
       const dateField = b.parsedAt || b.timestamp;
       if (filters.fromDate && dateField < filters.fromDate) return false;

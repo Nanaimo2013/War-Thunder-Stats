@@ -167,25 +167,28 @@ function _renderNotif(entry) {
   const el = document.createElement('div');
   el.className = 'wt-notif';
   el.id = entry.id;
+
+  // We still use innerHTML for the structure, but we treat entry.text separately
   el.innerHTML = `
-    <div class="wt-notif-left" style="background:${entry.color};box-shadow:0 0 6px ${entry.color}66;"></div>
+    <div class="wt-notif-left" style="background:${entry.color};"></div>
     <div class="wt-notif-inner">
       <span class="wt-notif-icon">${entry.icon}</span>
       <div class="wt-notif-body">
-        <div class="wt-notif-text">${entry.text}</div>
+        <div class="wt-notif-text"></div> 
       </div>
       <button class="wt-notif-close" title="Dismiss">&#x2715;</button>
     </div>
     <div class="wt-notif-progress" id="prog_${entry.id}" style="background:${entry.color};"></div>
   `;
 
-  // Close button
+  // MANUALLY set the text so it's safe from hackers
+  el.querySelector('.wt-notif-text').textContent = entry.text;
+
   const closeBtn = el.querySelector('.wt-notif-close');
   if (closeBtn) closeBtn.addEventListener('click', () => _dismissById(entry.id));
 
   container.appendChild(el);
 
-  // Animate progress bar shrink
   const bar = el.querySelector(`#prog_${entry.id}`);
   if (bar) {
     requestAnimationFrame(() => {
@@ -212,11 +215,6 @@ function _dismissById(id, immediate = false) {
     el.remove();
     _stack = _stack.filter(n => n.id !== id);
   }, 300);
-}
-
-// Expose for inline onclick usage
-if (typeof window !== 'undefined') {
-  window.__wtDismissNotif = _dismissById;
 }
 
 export default { notify, showMessage, clearNotifications };

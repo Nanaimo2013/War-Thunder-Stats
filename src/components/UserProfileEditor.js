@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { notify } from '../utils/notifications';
 import { WTSpinner } from '../styles/wtTheme';
+import { createId } from '../utils/battleParser.js';
 
 // ─── Field config ──────────────────────────────────────────────────────────
 
@@ -265,7 +266,7 @@ const UserProfileEditor = ({ users, setUsers, selectedUserId, setSelectedUserId 
       notify(`User "${form.name.trim()}" updated.`, 'success');
     } else {
       const newUser = {
-        id: crypto.randomUUID(),
+        id: createId()
         battles: [],
         ...Object.fromEntries(Object.entries(form).map(([k, v]) => [k, v.trim()])),
       };

@@ -55,7 +55,6 @@ const REGISTRY = {
   'Merkava Mk.4M':        { country: Country.ISRAEL, type: VehicleType.GROUND, baseType: VehicleBaseType.MEDIUM, rank: Rank.VII },
   'Merkava Mk.2B':        { country: Country.ISRAEL, type: VehicleType.GROUND, baseType: VehicleBaseType.MEDIUM, rank: Rank.VI },
   'Merkava Mk.1':         { country: Country.ISRAEL, type: VehicleType.GROUND, baseType: VehicleBaseType.MEDIUM, rank: Rank.VI },
-  'Sho\'t Kal Dalet':              { country: Country.ISRAEL, type: VehicleType.GROUND, baseType: VehicleBaseType.MEDIUM, rank: Rank.VI },
   'Sho\'t Kal Dalet':     { country: Country.ISRAEL, type: VehicleType.GROUND, baseType: VehicleBaseType.MEDIUM, rank: Rank.VI },
   'Magach 6':             { country: Country.ISRAEL, type: VehicleType.GROUND, baseType: VehicleBaseType.MEDIUM, rank: Rank.V },
   'M-51':                 { country: Country.ISRAEL, type: VehicleType.GROUND, baseType: VehicleBaseType.MEDIUM, rank: Rank.IV },
