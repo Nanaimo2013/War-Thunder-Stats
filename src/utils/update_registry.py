@@ -128,10 +128,16 @@ class RegistryManager:
         self.new_vehicles = []
 
     def _find_file(self, name: str) -> str:
-        # Check current dir, then the specific project path
-        base_path = "K:/Projects/Coding/Websites/War-Thunder-Stats/src/utils/"
-        if os.path.exists(name): return name
-        full = os.path.join(base_path, name)
+        # 1. Get the directory where THIS script (update_registry.py) is located
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # 2. Check if the file is in the current working directory first
+        if os.path.exists(name): 
+            return name
+            
+        # 3. If not, look in the same folder as the script
+        full = os.path.join(script_dir, name)
+        
         return full if os.path.exists(full) else name
 
     def backup(self):
@@ -172,7 +178,7 @@ class RegistryManager:
                 logger.info(f"⏭️  Skipping duplicate: {v.name}")
                 continue
 
-            target_header = f"── {v.country.capitalize()} – {v.type.capitalize()}"
+            target_header = f"── {v.country.capitalize()} - {v.type.capitalize()}"
             header_idx = -1
             
             for i, line in enumerate(self.js_lines):

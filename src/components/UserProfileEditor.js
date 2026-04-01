@@ -266,7 +266,7 @@ const UserProfileEditor = ({ users, setUsers, selectedUserId, setSelectedUserId 
       notify(`User "${form.name.trim()}" updated.`, 'success');
     } else {
       const newUser = {
-        id: createId()
+        id: createId(),
         battles: [],
         ...Object.fromEntries(Object.entries(form).map(([k, v]) => [k, v.trim()])),
       };

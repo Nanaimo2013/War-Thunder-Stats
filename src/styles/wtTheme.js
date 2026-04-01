@@ -933,7 +933,7 @@ export function useCounter(target, duration = 1200, decimals = 0) {
   const startTs = useRef(null);
 
   useEffect(() => {
-    if (!target || isNaN(target)) return;
+    if (target == null || isNaN(target)) return;
     const to = parseFloat(target);
     const tick = (ts) => {
       if (!startTs.current) startTs.current = ts;
