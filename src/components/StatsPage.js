@@ -61,8 +61,8 @@ const GLOBAL_STYLES = `
     --wt-purple-dim:    #7e22ce;
     --wt-steel:         #94a3b8;
     --wt-steel-dim:     #475569;
-    --wt-border:        rgba(245,158,11,0.15);
-    --wt-border-bright: rgba(245,158,11,0.4);
+    --wt-border:        rgba(59,130,246,0.15);
+    --wt-border-bright: rgba(59,130,246,0.4);
     --wt-text-primary:  #e2e8f0;
     --wt-text-muted:    #64748b;
     --wt-text-dim:      #94a3b8;
@@ -173,8 +173,8 @@ const GLOBAL_STYLES = `
         0deg,
         transparent,
         transparent 2px,
-        rgba(245,158,11,0.012) 2px,
-        rgba(245,158,11,0.012) 4px
+        rgba(59,130,246,0.008) 2px,
+        rgba(59,130,246,0.008) 4px
       );
     pointer-events: none;
     z-index: 0;
@@ -182,7 +182,7 @@ const GLOBAL_STYLES = `
   .wt-page > * { position: relative; z-index: 1; }
 
   .wt-hex-bg {
-    background-image: radial-gradient(circle at 1px 1px, rgba(245,158,11,0.06) 1px, transparent 0);
+    background-image: radial-gradient(circle at 1px 1px, rgba(59,130,246,0.05) 1px, transparent 0);
     background-size: 28px 28px;
   }
 
@@ -194,19 +194,19 @@ const GLOBAL_STYLES = `
   }
   .wt-panel:hover {
     border-color: var(--wt-border-bright);
-    box-shadow: 0 0 20px rgba(245,158,11,0.06);
+    box-shadow: 0 0 20px rgba(59,130,246,0.06);
   }
 
   .wt-card {
     background: var(--wt-bg-card);
-    border: 1px solid rgba(245,158,11,0.12);
+    border: 1px solid rgba(59,130,246,0.12);
     border-radius: var(--wt-radius);
     transition: all var(--wt-transition);
   }
   .wt-card:hover {
-    border-color: rgba(245,158,11,0.3);
+    border-color: rgba(59,130,246,0.3);
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.4), 0 0 16px rgba(245,158,11,0.08);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4), 0 0 16px rgba(59,130,246,0.08);
   }
 
   .wt-animate-in {
@@ -240,7 +240,7 @@ const GLOBAL_STYLES = `
 
   .wt-shimmer {
     background: linear-gradient(90deg,
-      transparent 0%, rgba(245,158,11,0.15) 50%, transparent 100%);
+      transparent 0%, rgba(59,130,246,0.15) 50%, transparent 100%);
     background-size: 200% 100%;
     animation: wt-shimmer 2s linear infinite;
   }
@@ -277,15 +277,16 @@ const GLOBAL_STYLES = `
     background: transparent;
   }
   .wt-tab:hover {
-    color: var(--wt-amber);
-    background: rgba(245,158,11,0.07);
-    border-color: rgba(245,158,11,0.2);
+    color: #60a5fa;
+    background: rgba(59,130,246,0.07);
+    border-color: rgba(59,130,246,0.2);
   }
   .wt-tab.active {
-    color: #0d1117;
+    color: #fff;
     font-weight: 700;
-    border-color: transparent;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    border-color: rgba(59,130,246,0.4);
+    background: rgba(59,130,246,0.15);
+    box-shadow: 0 2px 8px rgba(59,130,246,0.2);
   }
 
   /* ── KPI Cards ──────────────────────────────────────────────────────── */
@@ -340,15 +341,15 @@ const GLOBAL_STYLES = `
     gap: 12px;
     padding: 10px 14px;
     border-radius: var(--wt-radius);
-    border: 1px solid rgba(245,158,11,0.08);
+    border: 1px solid rgba(59,130,246,0.08);
     background: var(--wt-bg-raised);
     transition: all var(--wt-transition);
   }
   .wt-vehicle-row:hover {
-    border-color: rgba(245,158,11,0.3);
+    border-color: rgba(59,130,246,0.3);
     background: var(--wt-bg-hover);
     transform: translateX(4px);
-    box-shadow: 4px 0 12px rgba(245,158,11,0.1);
+    box-shadow: 4px 0 12px rgba(59,130,246,0.1);
   }
 
   /* ── Section headers ────────────────────────────────────────────────── */
@@ -376,19 +377,19 @@ const GLOBAL_STYLES = `
   .wt-page *::-webkit-scrollbar { width: 6px; height: 6px; }
   .wt-page *::-webkit-scrollbar-track { background: var(--wt-bg-void); }
   .wt-page *::-webkit-scrollbar-thumb {
-    background: var(--wt-amber-dim);
+    background: rgba(59,130,246,0.35);
     border-radius: 3px;
   }
-  .wt-page *::-webkit-scrollbar-thumb:hover { background: var(--wt-amber); }
+  .wt-page *::-webkit-scrollbar-thumb:hover { background: rgba(59,130,246,0.6); }
 
   /* ── Tooltip override ───────────────────────────────────────────────── */
   .wt-chart-tooltip {
     background: #0d1117 !important;
-    border: 1px solid rgba(245,158,11,0.35) !important;
+    border: 1px solid rgba(59,130,246,0.3) !important;
     border-radius: 6px !important;
     font-family: var(--wt-font-mono) !important;
     font-size: 12px !important;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.5), 0 0 12px rgba(245,158,11,0.1) !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5), 0 0 12px rgba(59,130,246,0.08) !important;
     color: #e2e8f0 !important;
   }
 
@@ -411,7 +412,7 @@ const GLOBAL_STYLES = `
   .wt-award-badge:hover {
     background: rgba(245,158,11,0.18);
     border-color: var(--wt-amber);
-    box-shadow: 0 0 10px rgba(245,158,11,0.2);
+    box-shadow: 0 0 10px rgba(245,158,11,0.15);
   }
 
   /* ── Divider ────────────────────────────────────────────────────────── */
@@ -467,14 +468,14 @@ const GLOBAL_STYLES = `
     cursor: pointer;
     width: 100%;
     transition: all var(--wt-transition);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23f59e0b' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2360a5fa' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 12px center;
   }
   .wt-select:focus {
     outline: none;
-    border-color: var(--wt-amber);
-    box-shadow: 0 0 0 3px rgba(245,158,11,0.12), 0 0 12px rgba(245,158,11,0.08);
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.12), 0 0 12px rgba(59,130,246,0.08);
   }
   .wt-select option {
     background: #1a2233;
@@ -484,7 +485,7 @@ const GLOBAL_STYLES = `
   /* ── Recharts override ──────────────────────────────────────────────── */
   .recharts-cartesian-grid-horizontal line,
   .recharts-cartesian-grid-vertical line {
-    stroke: rgba(245,158,11,0.08) !important;
+    stroke: rgba(59,130,246,0.07) !important;
   }
   .recharts-text { fill: #64748b !important; font-family: var(--wt-font-mono) !important; font-size: 11px !important; }
   .recharts-legend-item-text { fill: #94a3b8 !important; font-size: 12px !important; }
@@ -609,7 +610,7 @@ const fmtPct = (n, d = 1) =>
 
 const TOOLTIP_STYLE = {
   backgroundColor: '#0d1117',
-  border: '1px solid rgba(245,158,11,0.35)',
+  border: '1px solid rgba(59,130,246,0.3)',
   borderRadius: '6px',
   fontFamily: "'Share Tech Mono', monospace",
   fontSize: '12px',
@@ -623,6 +624,41 @@ const AMBER_SHADES   = ['#f59e0b','#d97706','#b45309','#92400e','#78350f'];
 const BATTLE_COLORS  = ['#22c55e','#ef4444','#64748b'];
 const COMBAT_PALETTE = ['#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#a855f7'];
 const ECONOMY_PALETTE= ['#22c55e','#3b82f6','#a855f7','#f59e0b','#06b6d4','#10b981','#f97316','#ef4444'];
+
+// ─── VEHICLE TYPE CONFIG ──────────────────────────────────────────────────
+
+const VEHICLE_TYPE_CONFIG = {
+  aviation: {
+    icon: Plane,
+    color: '#3b82f6',
+    label: 'Aircraft',
+    glow: 'rgba(59,130,246,0.35)',
+  },
+  ground: {
+    icon: Truck,
+    color: '#f97316',
+    label: 'Ground',
+    glow: 'rgba(249,115,22,0.35)',
+  },
+  naval: {
+    icon: Anchor,
+    color: '#06b6d4',
+    label: 'Naval',
+    glow: 'rgba(6,182,212,0.35)',
+  },
+  helicopter: {
+    icon: Plane,
+    color: '#8b5cf6',
+    label: 'Helicopter',
+    glow: 'rgba(139,92,246,0.35)',
+  },
+  default: {
+    icon: Shield,
+    color: '#94a3b8',
+    label: 'Unknown',
+    glow: 'rgba(148,163,184,0.25)',
+  },
+};
 
 // ─── SUB-COMPONENTS ────────────────────────────────────────────────────────
 
@@ -673,7 +709,7 @@ const KpiCard = memo(({ label, value, icon: Icon, color, subtext, delay = 0, uni
     purple: { bg: 'from-purple-900/40 to-purple-950/60',border: 'rgba(168,85,247,0.35)', text: '#a855f7', glow: 'rgba(168,85,247,0.12)' },
     steel:  { bg: 'from-slate-800/60 to-slate-900/60',  border: 'rgba(148,163,184,0.2)',  text: '#94a3b8', glow: 'rgba(148,163,184,0.06)' },
   };
-  const c = colorMap[color] || colorMap.amber;
+  const c = colorMap[color] || colorMap.blue;
 
   return (
     <div
@@ -714,7 +750,7 @@ const StatRow = memo(({ label, value, highlight, bar, barMax, color }) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       {bar && barMax > 0 && (
         <div className="wt-progress-track" style={{ width: 60 }}>
-          <div className="wt-progress-fill" style={{ width: `${Math.min((value/barMax)*100,100)}%`, background: color || 'var(--wt-amber)' }} />
+          <div className="wt-progress-fill" style={{ width: `${Math.min((value/barMax)*100,100)}%`, background: color || '#3b82f6' }} />
         </div>
       )}
       <span className="wt-mono" style={{ fontSize: 13, color: highlight || '#e2e8f0', fontWeight: 700 }}>
@@ -725,7 +761,7 @@ const StatRow = memo(({ label, value, highlight, bar, barMax, color }) => (
 ));
 
 /** Section header component */
-const SectionHeader = memo(({ icon: Icon, label, color = '#f59e0b', size = 'md', sub }) => {
+const SectionHeader = memo(({ icon: Icon, label, color = '#60a5fa', size = 'md', sub }) => {
   const sizes = { sm: 16, md: 22, lg: 26 };
   const fontSizes = { sm: 14, md: 18, lg: 24 };
   return (
@@ -740,7 +776,7 @@ const SectionHeader = memo(({ icon: Icon, label, color = '#f59e0b', size = 'md',
 });
 
 /** Chart container with lazy loading */
-const ChartCard = memo(({ title, subtitle, icon: Icon, children, color = '#f59e0b', style: extStyle, delay = 0 }) => {
+const ChartCard = memo(({ title, subtitle, icon: Icon, children, color = '#60a5fa', style: extStyle, delay = 0 }) => {
   const [ref, vis] = useInView(0.05);
   return (
     <div
@@ -755,7 +791,7 @@ const ChartCard = memo(({ title, subtitle, icon: Icon, children, color = '#f59e0
       }}
     >
       {title && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, borderBottom: '1px solid rgba(245,158,11,0.08)', paddingBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, borderBottom: '1px solid rgba(59,130,246,0.08)', paddingBottom: 12 }}>
           {Icon && <Icon size={16} style={{ color }} />}
           <span style={{ fontFamily: "'Rajdhani'", fontWeight: 700, fontSize: 14, letterSpacing: '0.07em', textTransform: 'uppercase', color }}>
             {title}
@@ -765,7 +801,7 @@ const ChartCard = memo(({ title, subtitle, icon: Icon, children, color = '#f59e0
       )}
       {vis ? children : (
         <div style={{ height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ width: 24, height: 24, border: '2px solid rgba(245,158,11,0.3)', borderTopColor: '#f59e0b', borderRadius: '50%', animation: 'wt-rotation 0.8s linear infinite' }} />
+          <div style={{ width: 24, height: 24, border: '2px solid rgba(59,130,246,0.3)', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'wt-rotation 0.8s linear infinite' }} />
         </div>
       )}
     </div>
@@ -800,7 +836,7 @@ const VehicleLeaderRow = memo(({ rank, vehicle, primary, primaryLabel, secondary
         )}
       </div>
       <div style={{ textAlign: 'right' }}>
-        <div style={{ fontFamily: "'Share Tech Mono'", fontSize: 16, fontWeight: 700, color: '#f59e0b' }}>
+        <div style={{ fontFamily: "'Share Tech Mono'", fontSize: 16, fontWeight: 700, color: '#60a5fa' }}>
           {typeof primary === 'number' ? fmt(primary) : primary}
         </div>
         <div style={{ fontSize: 10, color: '#475569', letterSpacing: '0.05em' }}>{primaryLabel}</div>
@@ -838,7 +874,7 @@ const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
     <div style={TOOLTIP_STYLE}>
-      {label && <div style={{ color: '#f59e0b', marginBottom: 6, fontSize: 11, letterSpacing: '0.06em' }}>{label}</div>}
+      {label && <div style={{ color: '#60a5fa', marginBottom: 6, fontSize: 11, letterSpacing: '0.06em' }}>{label}</div>}
       {payload.map((p, i) => (
         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
           <div style={{ width: 8, height: 8, borderRadius: '50%', background: p.color || p.fill }} />
@@ -862,6 +898,57 @@ const EmptyState = ({ message = 'No data available' }) => (
 
 /** Divider */
 const Divider = () => <div className="wt-divider" />;
+
+/** Vehicle podium card with animation */
+const VehiclePodiumCard = memo(({ vehicle, index }) => {
+  const [ref, vis] = useInView(0.05);
+  const TypeIcon = VEHICLE_TYPE_CONFIG[vehicle.type]?.icon || Shield;
+  const podiumColors = ['#60a5fa', '#94a3b8', '#34d399'];
+  const gc = podiumColors[index];
+  const emojis = ['🥇','🥈','🥉'];
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        background: `linear-gradient(135deg, ${gc}15, transparent)`,
+        border: `2px solid ${gc}55`,
+        borderRadius: 12,
+        padding: '20px 18px',
+        position: 'relative',
+        overflow: 'hidden',
+        opacity: vis ? 1 : 0,
+        transform: vis ? 'none' : 'scale(0.9)',
+        transition: `all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) ${index * 0.08}s`,
+        textAlign: 'center',
+      }}
+    >
+      <div style={{ position: 'absolute', top: 10, right: 12, fontSize: 20 }}>
+        {emojis[index]}
+      </div>
+      <TypeIcon size={32} style={{ color: gc, marginBottom: 8 }} />
+      <div style={{ fontFamily: "'Rajdhani'", fontSize: 15, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>
+        {vehicle.displayName}
+      </div>
+      <div style={{ fontSize: 10, color: '#475569', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: "'Exo 2'" }}>
+        {vehicle.country} · {vehicle.type}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        {[
+          { label: 'Kills',    value: fmt(vehicle.kills||0),            color: '#ef4444' },
+          { label: 'Battles',  value: fmt(vehicle.battles||0),          color: gc },
+          { label: 'SL',       value: fmtK(vehicle.earnedSL||0),        color: '#4ade80' },
+          { label: 'Time',     value: fmtTime(vehicle.timeSec||0),      color: '#3b82f6' },
+        ].map(({ label, value, color }) => (
+          <div key={label} style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 6, padding: '6px 4px' }}>
+            <div style={{ fontSize: 9, color: '#475569', letterSpacing: '0.08em' }}>{label}</div>
+            <div style={{ fontFamily: "'Share Tech Mono'", fontSize: 14, color, fontWeight: 700 }}>{value}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+});
 
 // ─── OVERVIEW TAB ─────────────────────────────────────────────────────────
 
@@ -931,7 +1018,7 @@ const OverviewTab = memo(({ stats, battles, enhancedStats }) => {
         ref={heroRef}
         style={{
           background: 'linear-gradient(135deg, #0d1117 0%, #111820 50%, #0d1117 100%)',
-          border: '1px solid rgba(245,158,11,0.2)',
+          border: '1px solid rgba(59,130,246,0.15)',
           borderRadius: 12,
           padding: '28px 32px',
           marginBottom: 24,
@@ -943,18 +1030,18 @@ const OverviewTab = memo(({ stats, battles, enhancedStats }) => {
         }}
       >
         {/* Background cross-hair pattern */}
-        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle at 50% 50%, rgba(245,158,11,0.03) 1px, transparent 0)', backgroundSize: '32px 32px', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle at 50% 50%, rgba(59,130,246,0.03) 1px, transparent 0)', backgroundSize: '32px 32px', pointerEvents: 'none' }} />
         {/* Glowing accent line top */}
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg, transparent 0%, #f59e0b 30%, #fbbf24 50%, #f59e0b 70%, transparent 100%)', boxShadow: '0 0 12px rgba(245,158,11,0.5)' }} />
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg, transparent 0%, #3b82f6 30%, #60a5fa 50%, #3b82f6 70%, transparent 100%)', boxShadow: '0 0 12px rgba(59,130,246,0.5)' }} />
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, alignItems: 'center', position: 'relative' }}>
           <WinRateRing winRate={winRate} />
 
           <div style={{ flex: 1, minWidth: 200 }}>
-            <div style={{ fontFamily: "'Rajdhani'", fontSize: 11, letterSpacing: '0.15em', color: '#f59e0b', textTransform: 'uppercase', marginBottom: 4 }}>Combat Summary</div>
+            <div style={{ fontFamily: "'Rajdhani'", fontSize: 11, letterSpacing: '0.15em', color: '#60a5fa', textTransform: 'uppercase', marginBottom: 4 }}>Combat Summary</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: 16, marginTop: 8 }}>
               {[
-                { label: 'BATTLES',   value: fmt(stats.totalBattles || 0),   color: '#f59e0b' },
+                { label: 'BATTLES',   value: fmt(stats.totalBattles || 0),   color: '#60a5fa' },
                 { label: 'KILLS',     value: fmt(totalKills),                 color: '#ef4444' },
                 { label: 'K/D',       value: (kdr).toFixed(2),                color: '#3b82f6' },
                 { label: 'AVG ACT',   value: `${(stats.averageActivity||0).toFixed(0)}%`, color: '#22c55e' },
@@ -971,7 +1058,7 @@ const OverviewTab = memo(({ stats, battles, enhancedStats }) => {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 180 }}>
             {[
-              { label: 'Total SL Earned',   value: fmtK(stats.totalEarnedSL || 0),  color: '#f59e0b', icon: DollarSign },
+              { label: 'Total SL Earned',   value: fmtK(stats.totalEarnedSL || 0),  color: '#4ade80', icon: DollarSign },
               { label: 'Total RP Earned',   value: fmtK(stats.overallTotalRP || stats.totalRP || 0), color: '#a855f7', icon: Zap },
               { label: 'Total Assists',     value: fmt(stats.totalAssists || 0),     color: '#22c55e', icon: Users },
               { label: 'Total Captures',    value: fmt(stats.totalCaptures || 0),    color: '#3b82f6', icon: Flag || Map },
@@ -1021,7 +1108,7 @@ const OverviewTab = memo(({ stats, battles, enhancedStats }) => {
             <PieChart>
               <Pie data={missionTypePie} cx="50%" cy="50%" outerRadius={85} innerRadius={40} dataKey="value" paddingAngle={3}
                 label={({ name, percent }) => `${(percent*100).toFixed(0)}%`}>
-                {missionTypePie.map((_, i) => <Cell key={i} fill={AMBER_SHADES[i % AMBER_SHADES.length]} stroke="none" />)}
+                {missionTypePie.map((_, i) => <Cell key={i} fill={COMBAT_PALETTE[i % COMBAT_PALETTE.length]} stroke="none" />)}
               </Pie>
               <Tooltip content={<CustomTooltip />} />
               <Legend iconType="circle" iconSize={8} />
@@ -1045,12 +1132,12 @@ const OverviewTab = memo(({ stats, battles, enhancedStats }) => {
                   <stop offset="100%" stopColor="#ef4444" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(245,158,11,0.07)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(59,130,246,0.06)" />
               <XAxis dataKey="battle" stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 10 }} />
               <YAxis stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 10 }} />
               <Tooltip content={<CustomTooltip />} />
               <Legend />
-              <ReferenceLine y={50} stroke="rgba(245,158,11,0.3)" strokeDasharray="4 4" label={{ value: '50%', fill: '#f59e0b', fontSize: 10 }} />
+              <ReferenceLine y={50} stroke="rgba(59,130,246,0.3)" strokeDasharray="4 4" label={{ value: '50%', fill: '#60a5fa', fontSize: 10 }} />
               <Area type="monotone" dataKey="winRate" stroke="#22c55e" fill="url(#winGrad)" strokeWidth={2} name="Win Rate %" dot={false} />
               <Area type="monotone" dataKey="avgKills" stroke="#ef4444" fill="url(#killGrad)" strokeWidth={2} name="Avg Kills" dot={false} />
             </AreaChart>
@@ -1062,12 +1149,12 @@ const OverviewTab = memo(({ stats, battles, enhancedStats }) => {
       <ChartCard title="Battle Activity by Hour" icon={Clock} delay={0.25} style={{ marginBottom: 16 }}>
         <ResponsiveContainer width="100%" height={180}>
           <ReBarChart data={hourlyData} margin={{ top: 5, right: 16, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(245,158,11,0.07)" />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(59,130,246,0.06)" />
             <XAxis dataKey="hour" stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 9 }} />
             <YAxis stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 9 }} />
             <Tooltip content={<CustomTooltip />} />
             <Legend />
-            <Bar dataKey="battles" fill="#f59e0b" radius={[3,3,0,0]} name="Battles" opacity={0.85} />
+            <Bar dataKey="battles" fill="#3b82f6" radius={[3,3,0,0]} name="Battles" opacity={0.85} />
           </ReBarChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -1095,7 +1182,7 @@ const OverviewTab = memo(({ stats, battles, enhancedStats }) => {
                   <span style={{ fontFamily: "'Share Tech Mono'", fontSize: 12, color: '#ef4444' }}>
                     ✈ {(b.killsAircraft||0)+(b.killsGround||0)}K
                   </span>
-                  <span style={{ fontFamily: "'Share Tech Mono'", fontSize: 12, color: '#f59e0b' }}>
+                  <span style={{ fontFamily: "'Share Tech Mono'", fontSize: 12, color: '#4ade80' }}>
                     {fmtK(b.earnedSL || b.totalSL || 0)} SL
                   </span>
                 </div>
@@ -1201,7 +1288,7 @@ const CombatTab = memo(({ stats, battles }) => {
       <ChartCard title="Combat Metrics Breakdown" icon={BarChart2} delay={0.2} style={{ marginBottom: 16 }}>
         <ResponsiveContainer width="100%" height={260}>
           <ReBarChart data={combatBarData} margin={{ top: 5, right: 16, left: 0, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(245,158,11,0.07)" />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(59,130,246,0.06)" />
             <XAxis dataKey="name" stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 10 }} />
             <YAxis stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 10 }} />
             <Tooltip content={<CustomTooltip />} />
@@ -1241,7 +1328,7 @@ const CombatTab = memo(({ stats, battles }) => {
               ]}
               margin={{ top: 5, right: 8, left: 0, bottom: 5 }}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(245,158,11,0.07)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(59,130,246,0.06)" />
               <XAxis dataKey="name" stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 9 }} />
               <YAxis stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 9 }} />
               <Tooltip content={<CustomTooltip />} formatter={v => fmtK(v)} />
@@ -1258,7 +1345,7 @@ const CombatTab = memo(({ stats, battles }) => {
         <ChartCard title="Kill / Damage per Battle" subtitle="chronological" icon={TrendingUp} delay={0.35}>
           <ResponsiveContainer width="100%" height={240}>
             <LineChart data={rollingCombat} margin={{ top: 5, right: 16, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(245,158,11,0.07)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(59,130,246,0.06)" />
               <XAxis dataKey="battle" stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 10 }} />
               <YAxis stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 10 }} />
               <Tooltip content={<CustomTooltip />} />
@@ -1321,7 +1408,7 @@ const EconomyTab = memo(({ stats, battles }) => {
 
   return (
     <div>
-      <SectionHeader icon={DollarSign} label="Economy Statistics" color="#f59e0b" />
+      <SectionHeader icon={DollarSign} label="Economy Statistics" color="#4ade80" />
 
       {/* ── KPIs ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))', gap: 12, marginBottom: 24 }}>
@@ -1337,12 +1424,12 @@ const EconomyTab = memo(({ stats, battles }) => {
 
       {/* ── SL & RP breakdown pies ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-        <ChartCard title="SL Sources" icon={DollarSign} color="#f59e0b" delay={0.1}>
+        <ChartCard title="SL Sources" icon={DollarSign} color="#4ade80" delay={0.1}>
           <ResponsiveContainer width="100%" height={230}>
             <PieChart>
               <Pie data={slBreakdown} cx="50%" cy="50%" outerRadius={85} innerRadius={40} dataKey="value" paddingAngle={4}
                 label={({ name, percent }) => `${(percent*100).toFixed(0)}%`}>
-                {slBreakdown.map((_, i) => <Cell key={i} fill={AMBER_SHADES[i]} stroke="none" />)}
+                {slBreakdown.map((_, i) => <Cell key={i} fill={ECONOMY_PALETTE[i % ECONOMY_PALETTE.length]} stroke="none" />)}
               </Pie>
               <Tooltip content={<CustomTooltip />} formatter={v => [fmtK(v), '']} />
               <Legend iconType="circle" iconSize={8} />
@@ -1378,13 +1465,13 @@ const EconomyTab = memo(({ stats, battles }) => {
             ]}
             margin={{ top: 5, right: 16, left: 0, bottom: 5 }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(245,158,11,0.07)" />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(59,130,246,0.06)" />
             <XAxis dataKey="name" stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 10 }} />
             <YAxis stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 10 }} />
             <Tooltip content={<CustomTooltip />} formatter={v => fmtK(v)} />
             <ReferenceLine y={0} stroke="rgba(255,255,255,0.15)" />
             <Bar dataKey="sl" radius={[3,3,0,0]} name="SL">
-              {[0,1,2,3,4,5].map(i => <Cell key={i} fill={i < 4 ? '#f59e0b' : '#ef4444'} opacity={i < 4 ? 0.85 : 0.7} />)}
+              {[0,1,2,3,4,5].map(i => <Cell key={i} fill={i < 4 ? '#4ade80' : '#ef4444'} opacity={i < 4 ? 0.85 : 0.7} />)}
             </Bar>
           </ReBarChart>
         </ResponsiveContainer>
@@ -1397,16 +1484,16 @@ const EconomyTab = memo(({ stats, battles }) => {
             <ComposedChart data={slTrend} margin={{ top: 5, right: 16, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="slGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="#f59e0b" stopOpacity={0} />
+                  <stop offset="0%" stopColor="#4ade80" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="#4ade80" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(245,158,11,0.07)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(59,130,246,0.06)" />
               <XAxis dataKey="battle" stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 10 }} />
               <YAxis stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 10 }} />
               <Tooltip content={<CustomTooltip />} formatter={v => fmtK(v)} />
               <Legend />
-              <Area type="monotone" dataKey="earned" stroke="#f59e0b" fill="url(#slGrad)" strokeWidth={2} name="Earned SL" dot={false} />
+              <Area type="monotone" dataKey="earned" stroke="#4ade80" fill="url(#slGrad)" strokeWidth={2} name="Earned SL" dot={false} />
               <Line type="monotone" dataKey="crp" stroke="#a855f7" strokeWidth={1.5} name="CRP" dot={false} strokeDasharray="4 2" />
             </ComposedChart>
           </ResponsiveContainer>
@@ -1420,20 +1507,20 @@ const EconomyTab = memo(({ stats, battles }) => {
             <AreaChart data={slCumulative} margin={{ top: 5, right: 16, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="cumSLGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%"   stopColor="#f59e0b" stopOpacity={0.4} />
-                  <stop offset="100%" stopColor="#f59e0b" stopOpacity={0} />
+                  <stop offset="0%"   stopColor="#4ade80" stopOpacity={0.4} />
+                  <stop offset="100%" stopColor="#4ade80" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="cumRPGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%"   stopColor="#a855f7" stopOpacity={0.3} />
                   <stop offset="100%" stopColor="#a855f7" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(245,158,11,0.07)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(59,130,246,0.06)" />
               <XAxis dataKey="battle" stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 10 }} />
               <YAxis stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 10 }} />
               <Tooltip content={<CustomTooltip />} formatter={v => fmtK(v)} />
               <Legend />
-              <Area type="monotone" dataKey="cumSL" stroke="#f59e0b" fill="url(#cumSLGrad)" strokeWidth={2} name="Cumulative SL" dot={false} />
+              <Area type="monotone" dataKey="cumSL" stroke="#4ade80" fill="url(#cumSLGrad)" strokeWidth={2} name="Cumulative SL" dot={false} />
               <Area type="monotone" dataKey="cumRP" stroke="#a855f7" fill="url(#cumRPGrad)" strokeWidth={2} name="Cumulative RP" dot={false} />
             </AreaChart>
           </ResponsiveContainer>
@@ -1548,7 +1635,7 @@ const ResearchTab = memo(({ stats, battles }) => {
               <Legend />
               <Area type="monotone" dataKey="totalRP" stroke="#a855f7" fill="url(#rpGrad)" strokeWidth={2} name="Total RP" dot={false} />
               <Line type="monotone" dataKey="activityRP" stroke="#3b82f6" strokeWidth={1.5} name="Activity RP" dot={false} />
-              <Line type="monotone" dataKey="skillRP"    stroke="#f59e0b" strokeWidth={1.5} name="Skill Bonus" dot={false} strokeDasharray="4 2" />
+              <Line type="monotone" dataKey="skillRP"    stroke="#fbbf24" strokeWidth={1.5} name="Skill Bonus" dot={false} strokeDasharray="4 2" />
             </ComposedChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -1604,53 +1691,9 @@ const VehiclesTab = memo(({ stats, battles }) => {
       {/* ── Top vehicle podium ── */}
       {topVehicles.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
-          {topVehicles.map((v, i) => {
-            const [ref, vis] = useInView(0.05);
-            const TypeIcon = typeIcons[v.type] || Shield;
-            const podiumColors = ['#f59e0b', '#94a3b8', '#cd7c2f'];
-            return (
-              <div
-                key={v.displayName}
-                ref={ref}
-                style={{
-                  background: `linear-gradient(135deg, ${podiumColors[i]}15, transparent)`,
-                  border: `2px solid ${podiumColors[i]}55`,
-                  borderRadius: 12,
-                  padding: '20px 18px',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  opacity: vis ? 1 : 0,
-                  transform: vis ? 'none' : 'scale(0.9)',
-                  transition: `all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) ${i * 0.08}s`,
-                  textAlign: 'center',
-                }}
-              >
-                <div style={{ position: 'absolute', top: 10, right: 12, fontSize: 20 }}>
-                  {['🥇','🥈','🥉'][i]}
-                </div>
-                <TypeIcon size={32} style={{ color: podiumColors[i], marginBottom: 8 }} />
-                <div style={{ fontFamily: "'Rajdhani'", fontSize: 15, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>
-                  {v.displayName}
-                </div>
-                <div style={{ fontSize: 10, color: '#475569', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: "'Exo 2'" }}>
-                  {v.country} · {v.type}
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                  {[
-                    { label: 'Kills',    value: fmt(v.kills||0),            color: '#ef4444' },
-                    { label: 'Battles',  value: fmt(v.battles||0),          color: podiumColors[i] },
-                    { label: 'SL',       value: fmtK(v.earnedSL||0),        color: '#f59e0b' },
-                    { label: 'Time',     value: fmtTime(v.timeSec||0),      color: '#3b82f6' },
-                  ].map(({ label, value, color }) => (
-                    <div key={label} style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 6, padding: '6px 4px' }}>
-                      <div style={{ fontSize: 9, color: '#475569', letterSpacing: '0.08em' }}>{label}</div>
-                      <div style={{ fontFamily: "'Share Tech Mono'", fontSize: 14, color, fontWeight: 700 }}>{value}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
+          {topVehicles.map((v, i) => (
+            <VehiclePodiumCard key={v.displayName} vehicle={v} index={i} />
+          ))}
         </div>
       )}
 
@@ -1685,7 +1728,7 @@ const VehiclesTab = memo(({ stats, battles }) => {
           </div>
         </ChartCard>
 
-        <ChartCard title="Top Vehicles by SL Earned" icon={DollarSign} color="#f59e0b" delay={0.25}>
+        <ChartCard title="Top Vehicles by SL Earned" icon={DollarSign} color="#4ade80" delay={0.25}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {(stats.topVehiclesBySL||[]).slice(0,5).map((v, i) => (
               <VehicleLeaderRow key={v.vehicle} rank={i+1} vehicle={v.vehicle} primary={fmtK(v.earnedSL)} primaryLabel="SL EARNED" country={v.country} delay={i*0.04} />
@@ -1711,9 +1754,9 @@ const VehiclesTab = memo(({ stats, battles }) => {
             <button key={id} onClick={() => setSortBy(id)} style={{
               padding: '4px 10px', borderRadius: 5, fontSize: 11, fontFamily: "'Rajdhani'", fontWeight: 600,
               letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer',
-              background: sortBy === id ? '#f59e0b' : 'rgba(255,255,255,0.04)',
-              color: sortBy === id ? '#0d1117' : '#64748b',
-              border: `1px solid ${sortBy === id ? '#f59e0b' : 'rgba(255,255,255,0.08)'}`,
+              background: sortBy === id ? '#3b82f6' : 'rgba(255,255,255,0.04)',
+              color: sortBy === id ? '#fff' : '#64748b',
+              border: `1px solid ${sortBy === id ? '#3b82f6' : 'rgba(255,255,255,0.08)'}`,
               transition: 'all 0.2s ease',
             }}>
               {label}
@@ -1756,10 +1799,10 @@ const VehiclesTab = memo(({ stats, battles }) => {
                   </div>
                 </div>
                 {[
-                  { label: 'BTL', value: v.battles||0,         color: '#f59e0b' },
+                  { label: 'BTL', value: v.battles||0,         color: '#60a5fa' },
                   { label: 'KIL', value: v.kills||0,           color: '#ef4444' },
                   { label: 'AST', value: v.assists||0,         color: '#22c55e' },
-                  { label: 'SL',  value: fmtK(v.earnedSL||0), color: '#f59e0b' },
+                  { label: 'SL',  value: fmtK(v.earnedSL||0), color: '#4ade80' },
                   { label: 'RP',  value: fmtK(v.earnedRP||0), color: '#a855f7' },
                   { label: 'TIME',value: fmtTime(v.timeSec||0),color: '#3b82f6' },
                 ].map(({ label, value, color: c }) => (
@@ -1849,9 +1892,8 @@ const MapsModeTab = memo(({ stats, battles, enhancedStats }) => {
               <XAxis type="number" stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 9 }} />
               <YAxis dataKey="name" type="category" stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 9 }} width={88} />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="value" radius={[0,3,3,0]} name="Battles">
-                {missionNameTop.map((_, i) => <Cell key={i} fill={i === 0 ? '#f59e0b' : i === 1 ? '#94a3b8' : '#06b6d4'} opacity={1 - i*0.06} />)}
-              </Bar>
+              <Bar dataKey="value" fill="#3b82f6" radius={[0,3,3,0]} name="Battles">
+              </Bar>  
             </ReBarChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -1881,12 +1923,12 @@ const MapsModeTab = memo(({ stats, battles, enhancedStats }) => {
         <ChartCard title="Avg SL & Kills by Map" icon={DollarSign} delay={0.25}>
           <ResponsiveContainer width="100%" height={260}>
             <ReBarChart data={mapData.slice(0,8)} margin={{ top: 5, right: 16, left: 0, bottom: 55 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(245,158,11,0.07)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(59,130,246,0.06)" />
               <XAxis dataKey="name" stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 9, angle: -35, textAnchor: 'end' }} />
               <YAxis stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 9 }} />
               <Tooltip content={<CustomTooltip />} formatter={v => typeof v === 'number' ? (v > 1000 ? fmtK(v) : v.toFixed(2)) : v} />
               <Legend />
-              <Bar dataKey="avgSL"    fill="#f59e0b" radius={[3,3,0,0]} name="Avg SL" opacity={0.85} />
+              <Bar dataKey="avgSL"    fill="#4ade80" radius={[3,3,0,0]} name="Avg SL" opacity={0.85} />
               <Bar dataKey="avgKills" fill="#ef4444" radius={[3,3,0,0]} name="Avg Kills" opacity={0.85} />
             </ReBarChart>
           </ResponsiveContainer>
@@ -1970,10 +2012,10 @@ const PerformanceTab = memo(({ stats, battles, enhancedStats }) => {
         <ChartCard title="Performance Radar" subtitle="normalised to 100" icon={Radio} delay={0.1}>
           <ResponsiveContainer width="100%" height={260}>
             <RadarChart data={radarData} margin={{ top: 10, right: 30, left: 30, bottom: 10 }}>
-              <PolarGrid stroke="rgba(245,158,11,0.12)" />
+              <PolarGrid stroke="rgba(59,130,246,0.15)" />
               <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontFamily: "'Share Tech Mono'", fontSize: 11 }} />
               <PolarRadiusAxis angle={30} domain={[0,100]} tick={{ fill: '#475569', fontSize: 9 }} />
-              <Radar name="Performance" dataKey="value" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.22} strokeWidth={2} dot={{ fill: '#f59e0b', r: 3 }} />
+              <Radar name="Performance" dataKey="value" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.22} strokeWidth={2} dot={{ fill: '#60a5fa', r: 3 }} />
               <Tooltip content={<CustomTooltip />} formatter={v => `${v.toFixed(1)}%`} />
             </RadarChart>
           </ResponsiveContainer>
@@ -1982,7 +2024,7 @@ const PerformanceTab = memo(({ stats, battles, enhancedStats }) => {
         <ChartCard title="SL: Victory vs Defeat" icon={DollarSign} delay={0.15}>
           <ResponsiveContainer width="100%" height={260}>
             <ReBarChart data={winLossSL} margin={{ top: 20, right: 16, left: 0, bottom: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(245,158,11,0.07)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(59,130,246,0.06)" />
               <XAxis dataKey="name" stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 10 }} />
               <YAxis stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 10 }} />
               <Tooltip content={<CustomTooltip />} formatter={v => fmtK(v)} />
@@ -2005,7 +2047,7 @@ const PerformanceTab = memo(({ stats, battles, enhancedStats }) => {
                   <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(245,158,11,0.07)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(59,130,246,0.06)" />
               <XAxis dataKey="battle" stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 10 }} />
               <YAxis yAxisId="pct" stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 10 }} domain={[0,100]} />
               <YAxis yAxisId="num" orientation="right" stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 10 }} />
@@ -2014,7 +2056,7 @@ const PerformanceTab = memo(({ stats, battles, enhancedStats }) => {
               <ReferenceLine yAxisId="pct" y={50} stroke="rgba(255,255,255,0.12)" strokeDasharray="4 4" />
               <Area yAxisId="pct" type="monotone" dataKey="winRate"  stroke="#22c55e" fill="url(#perfWRGrad)" strokeWidth={2} name="Win Rate %" dot={false} />
               <Line yAxisId="num" type="monotone" dataKey="avgKills" stroke="#ef4444" strokeWidth={2} name="Avg Kills" dot={false} />
-              <Line yAxisId="pct" type="monotone" dataKey="avgAct"   stroke="#f59e0b" strokeWidth={1.5} name="Avg Activity %" dot={false} strokeDasharray="4 2" />
+              <Line yAxisId="pct" type="monotone" dataKey="avgAct"   stroke="#fbbf24" strokeWidth={1.5} name="Avg Activity %" dot={false} strokeDasharray="4 2" />
             </ComposedChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -2025,15 +2067,67 @@ const PerformanceTab = memo(({ stats, battles, enhancedStats }) => {
         <ChartCard title="Activity vs Win Rate Correlation" icon={Eye} delay={0.25} style={{ marginBottom: 16 }}>
           <ResponsiveContainer width="100%" height={240}>
             <ScatterChart margin={{ top: 10, right: 16, left: 0, bottom: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(245,158,11,0.07)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(59,130,246,0.06)" />
               <XAxis dataKey="avgAct" name="Activity %" stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 10 }} label={{ value: 'Activity %', fill: '#475569', fontSize: 10, position: 'bottom' }} />
               <YAxis dataKey="winRate" name="Win Rate %" stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 10 }} label={{ value: 'Win Rate %', fill: '#475569', fontSize: 10, angle: -90, position: 'insideLeft' }} />
-              <Tooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3', stroke: 'rgba(245,158,11,0.3)' }} />
-              <Scatter data={performanceTrend} fill="#f59e0b" opacity={0.7} />
+              <Tooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3', stroke: 'rgba(59,130,246,0.3)' }} />
+              <Scatter data={performanceTrend} fill="#3b82f6" opacity={0.7} />
             </ScatterChart>
           </ResponsiveContainer>
         </ChartCard>
       )}
+    </div>
+  );
+});
+
+/** Award podium card with animation */
+const AwardPodiumCard = memo(({ award, index, totalBattles }) => {
+  const [ref, vis] = useInView(0.05);
+  const podColors = ['#60a5fa','#94a3b8','#34d399'];
+  const emojis = ['🥇','🥈','🥉'];
+  const gc = podColors[index];
+
+  return (
+    <div ref={ref} style={{
+      background: `linear-gradient(135deg, ${gc}18, #0d1117 80%)`,
+      border: `2px solid ${gc}55`, borderRadius: 14, padding: '24px 18px', textAlign: 'center',
+      position: 'relative', overflow: 'hidden',
+      opacity: vis ? 1 : 0, transform: vis ? 'scale(1)' : 'scale(0.88)',
+      transition: `all 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) ${index*0.1}s`,
+      boxShadow: vis ? `0 12px 32px rgba(0,0,0,0.4), 0 0 24px ${gc}22` : 'none',
+    }}>
+      <div style={{ fontSize: 40, marginBottom: 10, lineHeight: 1 }}>{emojis[index]}</div>
+      <div style={{ fontFamily: "'Rajdhani'", fontSize: 16, fontWeight: 700, color: '#e2e8f0', marginBottom: 8, lineHeight: 1.2 }}>
+        {award.award}
+      </div>
+      <div style={{ fontFamily: "'Share Tech Mono'", fontSize: 30, color: gc, fontWeight: 700, lineHeight: 1, textShadow: `0 0 12px ${gc}66` }}>
+        ×{award.count}
+      </div>
+      <div style={{ fontSize: 10, color: '#475569', marginTop: 6, letterSpacing: '0.1em', fontFamily: "'Rajdhani'", fontWeight: 600 }}>TIMES AWARDED</div>
+      <div style={{ fontSize: 11, color: gc, marginTop: 4, fontFamily: "'Share Tech Mono'" }}>
+        {((award.count / Math.max(totalBattles||1, 1)) * 100).toFixed(1)}% of battles
+      </div>
+    </div>
+  );
+});
+
+/** Award board item with animation */
+const AwardBoardItem = memo(({ award, index, color }) => {
+  const [ref, vis] = useInView(0.02);
+  return (
+    <div ref={ref} style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '9px 13px', borderRadius: 6,
+      background: `${color}0e`, border: `1px solid ${color}35`,
+      opacity: vis ? 1 : 0, transform: vis ? 'none' : 'translateX(-10px)',
+      transition: `all 0.38s ease ${Math.min(index,24)*0.025}s`,
+      cursor: 'default',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+        <Star size={12} style={{ color: color, flexShrink: 0 }} />
+        <span style={{ fontFamily: "'Exo 2'", fontSize: 13, color: '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{award.award}</span>
+      </div>
+      <span style={{ fontFamily: "'Share Tech Mono'", fontSize: 16, color: color, fontWeight: 700, flexShrink: 0, marginLeft: 8 }}>×{award.count}</span>
     </div>
   );
 });
@@ -2092,7 +2186,7 @@ const AwardsTab = memo(({ stats, battles }) => {
 
   return (
     <div>
-      <SectionHeader icon={Award} label="Awards & Decorations" color="#f59e0b" />
+      <SectionHeader icon={Award} label="Awards & Decorations" color="#fbbf24" />
 
       {awards.length === 0 ? (
         <EmptyState message="No award data yet" />
@@ -2100,44 +2194,19 @@ const AwardsTab = memo(({ stats, battles }) => {
         <>
           {/* ── Award KPIs ── */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))', gap: 12, marginBottom: 24 }}>
-            <KpiCard label="Total Awards"     value={fmt(stats.totalAwardsCount||0)}   icon={Award}      color="amber"  delay={0}    />
-            <KpiCard label="Award Types"      value={fmt(awards.length)}               icon={Star}       color="amber"  delay={0.05} />
+            <KpiCard label="Total Awards"     value={fmt(stats.totalAwardsCount||0)}   icon={Award}      color="blue"   delay={0}    />
+            <KpiCard label="Award Types"      value={fmt(awards.length)}               icon={Star}       color="blue"   delay={0.05} />
             <KpiCard label="Awards SL"        value={fmtK(stats.totalAwardsSL||0)}    icon={DollarSign} color="green"  delay={0.10} />
             <KpiCard label="Awards RP"        value={fmtK(stats.totalAwardsRP||0)}    icon={Zap}        color="purple" delay={0.15} />
-            <KpiCard label="Per Battle"       value={((stats.totalAwardsCount||0)/Math.max(stats.totalBattles||1,1)).toFixed(2)} icon={TrendingUp} color="amber" delay={0.20} />
-            <KpiCard label="Top Award"        value={(awards[0]?.award||'—').slice(0,12)} icon={Trophy}  color="amber"  delay={0.25} />
+            <KpiCard label="Per Battle"       value={((stats.totalAwardsCount||0)/Math.max(stats.totalBattles||1,1)).toFixed(2)} icon={TrendingUp} color="blue" delay={0.20} />
+            <KpiCard label="Top Award"        value={(awards[0]?.award||'—').slice(0,12)} icon={Trophy}  color="blue"   delay={0.25} />
           </div>
 
           {/* ── Podium ── */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 24 }}>
-            {awards.slice(0,3).map((a, i) => {
-              const [ref, vis] = useInView(0.05);
-              const podColors = ['#f59e0b','#94a3b8','#cd7c2f'];
-              const emojis    = ['🥇','🥈','🥉'];
-              const gc = podColors[i];
-              return (
-                <div key={a.award} ref={ref} style={{
-                  background: `linear-gradient(135deg, ${gc}18, #0d1117 80%)`,
-                  border: `2px solid ${gc}55`, borderRadius: 14, padding: '24px 18px', textAlign: 'center',
-                  position: 'relative', overflow: 'hidden',
-                  opacity: vis ? 1 : 0, transform: vis ? 'scale(1)' : 'scale(0.88)',
-                  transition: `all 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) ${i*0.1}s`,
-                  boxShadow: vis ? `0 12px 32px rgba(0,0,0,0.4), 0 0 24px ${gc}22` : 'none',
-                }}>
-                  <div style={{ fontSize: 40, marginBottom: 10, lineHeight: 1 }}>{emojis[i]}</div>
-                  <div style={{ fontFamily: "'Rajdhani'", fontSize: 16, fontWeight: 700, color: '#e2e8f0', marginBottom: 8, lineHeight: 1.2 }}>
-                    {a.award}
-                  </div>
-                  <div style={{ fontFamily: "'Share Tech Mono'", fontSize: 30, color: gc, fontWeight: 700, lineHeight: 1, textShadow: `0 0 12px ${gc}66` }}>
-                    ×{a.count}
-                  </div>
-                  <div style={{ fontSize: 10, color: '#475569', marginTop: 6, letterSpacing: '0.1em', fontFamily: "'Rajdhani'", fontWeight: 600 }}>TIMES AWARDED</div>
-                  <div style={{ fontSize: 11, color: gc, marginTop: 4, fontFamily: "'Share Tech Mono'" }}>
-                    {((a.count / Math.max(stats.totalBattles||1, 1)) * 100).toFixed(1)}% of battles
-                  </div>
-                </div>
-              );
-            })}
+            {awards.slice(0,3).map((a, i) => (
+              <AwardPodiumCard key={a.award} award={a} index={i} totalBattles={stats.totalBattles} />
+            ))}
           </div>
 
           {/* ── Pie + Frequency bar ── */}
@@ -2158,7 +2227,7 @@ const AwardsTab = memo(({ stats, battles }) => {
             <ChartCard title="Award Frequency" icon={BarChart2} delay={0.15}>
               <ResponsiveContainer width="100%" height={240}>
                 <ReBarChart data={awards.slice(0,8).map(a => ({ ...a, award: a.award.length>16 ? a.award.slice(0,16)+'…':a.award }))} layout="vertical" margin={{ top: 5, right: 16, left: 110, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(245,158,11,0.07)" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(59,130,246,0.06)" />
                   <XAxis type="number" stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 9 }} />
                   <YAxis dataKey="award" type="category" stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 9 }} width={118} />
                   <Tooltip content={<CustomTooltip />} />
@@ -2174,7 +2243,7 @@ const AwardsTab = memo(({ stats, battles }) => {
           <ChartCard title="Award Rate per Battle" subtitle="frequency per game" icon={TrendingUp} delay={0.2} style={{ marginBottom: 16 }}>
             <ResponsiveContainer width="100%" height={200}>
               <ReBarChart data={awardRateData} margin={{ top: 5, right: 16, left: 0, bottom: 40 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(245,158,11,0.07)" />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(59,130,246,0.06)" />
                 <XAxis dataKey="award" stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 9, angle: -30, textAnchor: 'end' }} />
                 <YAxis stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 9 }} />
                 <Tooltip content={<CustomTooltip />} formatter={v => v.toFixed(3)} />
@@ -2192,20 +2261,20 @@ const AwardsTab = memo(({ stats, battles }) => {
                 <AreaChart data={awardsOverTime} margin={{ top: 5, right: 16, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="awardGrad"  x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%"   stopColor="#f59e0b" stopOpacity={0.4} />
-                      <stop offset="100%" stopColor="#f59e0b" stopOpacity={0} />
+                      <stop offset="0%"   stopColor="#60a5fa" stopOpacity={0.4} />
+                      <stop offset="100%" stopColor="#60a5fa" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="uniqueGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%"   stopColor="#3b82f6" stopOpacity={0.3} />
                       <stop offset="100%" stopColor="#3b82f6" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(245,158,11,0.07)" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(59,130,246,0.06)" />
                   <XAxis dataKey="battle" stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 10 }} />
                   <YAxis stroke="#475569" tick={{ fontFamily: "'Share Tech Mono'", fontSize: 10 }} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
-                  <Area type="monotone" dataKey="total"  stroke="#f59e0b" fill="url(#awardGrad)"  strokeWidth={2} name="Total Awards"       dot={false} />
+                  <Area type="monotone" dataKey="total"  stroke="#60a5fa" fill="url(#awardGrad)"  strokeWidth={2} name="Total Awards"       dot={false} />
                   <Area type="monotone" dataKey="unique" stroke="#3b82f6" fill="url(#uniqueGrad)" strokeWidth={2} name="Unique Award Types"  dot={false} />
                 </AreaChart>
               </ResponsiveContainer>
@@ -2233,26 +2302,9 @@ const AwardsTab = memo(({ stats, battles }) => {
           {/* ── Full board ── */}
           <ChartCard title="Complete Decoration Board" subtitle={`${awards.length} unique decorations`} icon={Trophy} delay={0.35}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8 }}>
-              {awards.map((a, i) => {
-                const [ref, vis] = useInView(0.02);
-                const col = awardColors[i % awardColors.length];
-                return (
-                  <div key={a.award} ref={ref} style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '9px 13px', borderRadius: 6,
-                    background: `${col}0e`, border: `1px solid ${col}35`,
-                    opacity: vis ? 1 : 0, transform: vis ? 'none' : 'translateX(-10px)',
-                    transition: `all 0.38s ease ${Math.min(i,24)*0.025}s`,
-                    cursor: 'default',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                      <Star size={12} style={{ color: col, flexShrink: 0 }} />
-                      <span style={{ fontFamily: "'Exo 2'", fontSize: 13, color: '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.award}</span>
-                    </div>
-                    <span style={{ fontFamily: "'Share Tech Mono'", fontSize: 16, color: col, fontWeight: 700, flexShrink: 0, marginLeft: 8 }}>×{a.count}</span>
-                  </div>
-                );
-              })}
+              {awards.map((a, i) => (
+                <AwardBoardItem key={a.award} award={a} index={i} color={awardColors[i % awardColors.length]} />
+              ))}
             </div>
           </ChartCard>
         </>

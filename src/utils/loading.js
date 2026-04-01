@@ -326,7 +326,7 @@ export function lazyWithFallback(importFn) {
   };
 }
 
-export default {
+const loading = {
   useIntersectionObserver,
   usePagination,
   useImagePreloader,
@@ -339,3 +339,4 @@ export default {
   LazySection,
   lazyWithFallback,
 };
+export default loading;

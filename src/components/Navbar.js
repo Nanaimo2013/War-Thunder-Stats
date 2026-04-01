@@ -1,277 +1,195 @@
 /**
- * Navbar.js  v2.0
- * Military HUD aesthetic, WTTheme-consistent, sticky, full-width.
+ * Navbar.js  v3.0
+ * Deep navy + electric blue design, Inter font, glassmorphism.
  */
 
-import React, { useState, useEffect } from 'react';
-import { Home, Users, BarChart2, Award, GitCompare, Info, FileText, Menu, X } from 'lucide-react';
-import { StyleInjector } from '../styles/wtTheme';
-
-const WT_LOGO = () => (
-  <svg viewBox="0 0 40 40" width="34" height="34" style={{ flexShrink: 0 }}>
-    <defs>
-      <linearGradient id="logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#fbbf24" />
-        <stop offset="100%" stopColor="#d97706" />
-      </linearGradient>
-      <filter id="logo-glow">
-        <feGaussianBlur stdDeviation="1.5" result="blur" />
-        <feComposite in="SourceGraphic" in2="blur" operator="over" />
-      </filter>
-    </defs>
-    {/* Shield */}
-    <path
-      d="M20 2 L37 9 L37 28 L20 38 L3 28 L3 9 Z"
-      fill="url(#logo-grad)"
-      stroke="#b45309"
-      strokeWidth="1.5"
-      filter="url(#logo-glow)"
-    />
-    {/* W */}
-    <text
-      x="20" y="26"
-      fontFamily="'Rajdhani', sans-serif"
-      fontSize="18"
-      fontWeight="800"
-      fill="#0d1117"
-      textAnchor="middle"
-      dominantBaseline="middle"
-    >
-      W
-    </text>
-  </svg>
-);
+import React, { useState, useEffect, useRef } from 'react';
+import { Home, Users, BarChart2, Award, GitCompare, Info, FileText, Menu, X, Swords } from 'lucide-react';
 
 const NAV_ITEMS = [
-  { name: 'Home',          page: 'home',            icon: Home },
-  { name: 'Stats',         page: 'stats',           icon: BarChart2 },
-  { name: 'Leaderboard',   page: 'leaderboard',     icon: Award },
-  { name: 'Compare',       page: 'compare-players', icon: GitCompare },
-  { name: 'Data',          page: 'data-management', icon: Users },
-  { name: 'Battle Logs',   page: 'battle-logs',     icon: FileText },
-  { name: 'About',         page: 'about',           icon: Info },
+  { name: 'Home',        page: 'home',            icon: Home },
+  { name: 'Stats',       page: 'stats',           icon: BarChart2 },
+  { name: 'Leaderboard', page: 'leaderboard',     icon: Award },
+  { name: 'Compare',     page: 'compare-players', icon: GitCompare },
+  { name: 'Battle Logs', page: 'battle-logs',     icon: FileText },
+  { name: 'Data',        page: 'data-management', icon: Users },
+  { name: 'About',       page: 'about',           icon: Info },
 ];
 
-const NAVBAR_STYLES = `
-  .wt-navbar {
-    background: linear-gradient(180deg, rgba(7,10,13,0.98) 0%, rgba(13,17,23,0.98) 100%);
-    border-bottom: 1px solid rgba(245,158,11,0.18);
+const STYLES = `
+  .wt-nb { box-sizing: border-box; }
+  .wt-nb-root {
+    background: rgba(4,8,15,0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(59,130,246,0.1);
     position: sticky;
     top: 0;
     z-index: 200;
-    box-shadow: 0 2px 20px rgba(0,0,0,0.6), 0 0 0 1px rgba(245,158,11,0.06);
-    backdrop-filter: blur(12px);
+    box-shadow: 0 1px 0 rgba(59,130,246,0.08), 0 4px 32px rgba(0,0,0,0.7);
   }
-  .wt-navbar-inner {
+  .wt-nb-inner {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 24px;
-    height: 58px;
-    max-width: 100%;
-    box-sizing: border-box;
+    padding: 0 20px;
+    height: 56px;
+    max-width: 1400px;
+    margin: 0 auto;
   }
-  .wt-navbar-brand {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+  .wt-nb-brand {
+    display: flex; align-items: center; gap: 10px;
+    background: none; border: none; cursor: pointer; padding: 0;
+    flex-shrink: 0;
     text-decoration: none;
+  }
+  .wt-nb-logo {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 16px rgba(59,130,246,0.4), 0 2px 8px rgba(0,0,0,0.4);
     flex-shrink: 0;
   }
-  .wt-navbar-title {
+  .wt-nb-title {
     font-family: 'Rajdhani', sans-serif;
-    font-weight: 800;
-    font-size: 18px;
-    letter-spacing: 0.1em;
+    font-weight: 700;
+    font-size: 17px;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: #f59e0b;
-    text-shadow: 0 0 20px rgba(245,158,11,0.4);
+    color: #e2e8f0;
     line-height: 1;
   }
-  .wt-navbar-subtitle {
-    font-family: 'Share Tech Mono', monospace;
+  .wt-nb-title span { color: #60a5fa; }
+  .wt-nb-sub {
+    font-family: 'Inter', sans-serif;
     font-size: 9px;
-    letter-spacing: 0.18em;
-    color: #475569;
+    letter-spacing: 0.14em;
+    color: #334155;
     text-transform: uppercase;
     line-height: 1;
     margin-top: 2px;
   }
-  .wt-nav-list {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    flex-wrap: nowrap;
+  .wt-nb-list {
+    display: flex; align-items: center; gap: 1px;
+    list-style: none; margin: 0; padding: 0;
     overflow: hidden;
   }
-  .wt-nav-btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 7px 12px;
-    border-radius: 6px;
-    font-family: 'Rajdhani', sans-serif;
-    font-weight: 700;
-    font-size: 12px;
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
+  .wt-nb-btn {
+    display: flex; align-items: center; gap: 5px;
+    padding: 6px 11px;
+    border-radius: 7px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 12.5px;
     cursor: pointer;
     border: 1px solid transparent;
     transition: all 0.18s cubic-bezier(0.4,0,0.2,1);
     color: #64748b;
     background: transparent;
     white-space: nowrap;
-    position: relative;
+    line-height: 1;
   }
-  .wt-nav-btn:hover {
-    color: #f59e0b;
-    background: rgba(245,158,11,0.07);
-    border-color: rgba(245,158,11,0.18);
-  }
-  .wt-nav-btn.active {
-    color: #0d1117;
-    background: linear-gradient(135deg, #f59e0b, #d97706);
+  .wt-nb-btn:hover { color: #93c5fd; background: rgba(59,130,246,0.08); border-color: rgba(59,130,246,0.16); }
+  .wt-nb-btn.active {
+    color: #fff;
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
     border-color: transparent;
-    box-shadow: 0 2px 12px rgba(245,158,11,0.35), 0 0 0 1px rgba(245,158,11,0.15);
+    box-shadow: 0 2px 12px rgba(59,130,246,0.4);
+    font-weight: 600;
   }
-  .wt-nav-btn.active::before {
-    content: '';
-    position: absolute;
-    inset: -1px;
-    border-radius: 7px;
-    background: linear-gradient(135deg, rgba(251,191,36,0.4), rgba(217,119,6,0.4));
-    z-index: -1;
-    filter: blur(6px);
-  }
-
-  /* Mobile menu */
-  .wt-mobile-menu {
+  .wt-nb-ham {
     display: none;
+    align-items: center; justify-content: center;
+    background: transparent;
+    border: 1px solid rgba(59,130,246,0.18);
+    border-radius: 7px;
+    padding: 7px;
+    cursor: pointer;
+    color: #60a5fa;
+    transition: all 0.18s ease;
+  }
+  .wt-nb-ham:hover { background: rgba(59,130,246,0.08); border-color: rgba(59,130,246,0.3); }
+  .wt-nb-mobile {
     position: fixed;
-    top: 58px;
-    left: 0; right: 0;
-    background: rgba(7,10,13,0.98);
-    border-bottom: 1px solid rgba(245,158,11,0.15);
-    padding: 12px 16px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+    top: 56px; left: 0; right: 0;
+    background: rgba(4,8,15,0.97);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-bottom: 1px solid rgba(59,130,246,0.1);
+    padding: 10px 16px 14px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.7);
     z-index: 199;
-    backdrop-filter: blur(12px);
     flex-direction: column;
-    gap: 4px;
-    animation: wt-slide-down 0.25s ease both;
+    gap: 3px;
+    display: none;
+    animation: wt-slide-down 0.22s ease both;
   }
-  .wt-mobile-menu.open {
-    display: flex;
+  .wt-nb-mobile.open { display: flex; }
+  .wt-nb-mobile .wt-nb-btn { width: 100%; justify-content: flex-start; padding: 9px 12px; font-size: 13px; }
+  @media (max-width: 860px) {
+    .wt-nb-list  { display: none; }
+    .wt-nb-ham   { display: flex !important; }
   }
-  .wt-mobile-menu .wt-nav-btn {
-    width: 100%;
-    justify-content: flex-start;
-    padding: 10px 14px;
-    font-size: 13px;
-  }
-
-  @media (max-width: 900px) {
-    .wt-nav-list { display: none; }
-    .wt-hamburger { display: flex !important; }
-  }
-  @media (min-width: 901px) {
-    .wt-hamburger { display: none !important; }
-    .wt-mobile-menu { display: none !important; }
-  }
-
-  /* Accent line animation */
-  .wt-navbar::after {
-    content: '';
-    position: absolute;
-    bottom: 0; left: 0; right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent 0%, rgba(245,158,11,0.5) 30%, rgba(251,191,36,0.8) 50%, rgba(245,158,11,0.5) 70%, transparent 100%);
-    animation: wt-shimmer 4s linear infinite;
-    background-size: 200% 100%;
+  @media (min-width: 861px) {
+    .wt-nb-ham    { display: none !important; }
+    .wt-nb-mobile { display: none !important; }
   }
 `;
 
 const Navbar = ({ setCurrentPage, currentPage }) => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => { setMenuOpen(false); }, [currentPage]);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 10);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+    if (!menuOpen) return;
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [menuOpen]);
 
-  useEffect(() => {
-    setMenuOpen(false);
-  }, [currentPage]);
-
-  const handleNav = (page) => {
-    setCurrentPage(page);
-    setMenuOpen(false);
-  };
+  const go = (page) => { setCurrentPage(page); setMenuOpen(false); };
 
   return (
     <>
-      <StyleInjector />
-      {/* Inline navbar-specific styles */}
-      <style>{NAVBAR_STYLES}</style>
-
-      <nav className="wt-navbar" style={{ position: 'sticky' }}>
-        <div className="wt-navbar-inner">
-          {/* Brand */}
-          <button className="wt-navbar-brand" onClick={() => handleNav('home')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-            <WT_LOGO />
+      <style>{STYLES}</style>
+      <nav className="wt-nb-root wt-nb">
+        <div className="wt-nb-inner">
+          <button className="wt-nb-brand" onClick={() => go('home')}>
+            <div className="wt-nb-logo">
+              <Swords size={16} color="#fff" strokeWidth={2.5} />
+            </div>
             <div>
-              <div className="wt-navbar-title">WAR THUNDER</div>
-              <div className="wt-navbar-subtitle">STATS TRACKER</div>
+              <div className="wt-nb-title">WAR<span> THUNDER</span></div>
+              <div className="wt-nb-sub">Stats Tracker</div>
             </div>
           </button>
 
-          {/* Desktop nav */}
-          <ul className="wt-nav-list">
+          <ul className="wt-nb-list">
             {NAV_ITEMS.map(({ name, page, icon: Icon }) => (
               <li key={page}>
-                <button
-                  className={`wt-nav-btn ${currentPage === page ? 'active' : ''}`}
-                  onClick={() => handleNav(page)}
-                >
-                  <Icon size={14} />
+                <button className={`wt-nb-btn ${currentPage === page ? 'active' : ''}`} onClick={() => go(page)}>
+                  <Icon size={13} />
                   {name}
                 </button>
               </li>
             ))}
           </ul>
 
-          {/* Hamburger */}
-          <button
-            className="wt-hamburger"
-            style={{
-              display: 'none',
-              background: 'none', border: '1px solid rgba(245,158,11,0.2)',
-              borderRadius: 6, padding: '7px', cursor: 'pointer',
-              color: '#f59e0b',
-              transition: 'all 0.18s ease',
-            }}
-            onClick={() => setMenuOpen(m => !m)}
-            aria-label="Menu"
-          >
-            {menuOpen ? <X size={18} /> : <Menu size={18} />}
+          <button className="wt-nb-ham" onClick={() => setMenuOpen(m => !m)} aria-label="Menu">
+            {menuOpen ? <X size={17} /> : <Menu size={17} />}
           </button>
         </div>
       </nav>
 
-      {/* Mobile dropdown */}
-      <div className={`wt-mobile-menu ${menuOpen ? 'open' : ''}`}>
+      <div ref={menuRef} className={`wt-nb-mobile ${menuOpen ? 'open' : ''}`}>
         {NAV_ITEMS.map(({ name, page, icon: Icon }) => (
-          <button
-            key={page}
-            className={`wt-nav-btn ${currentPage === page ? 'active' : ''}`}
-            onClick={() => handleNav(page)}
-          >
-            <Icon size={16} />
+          <button key={page} className={`wt-nb-btn ${currentPage === page ? 'active' : ''}`} onClick={() => go(page)}>
+            <Icon size={15} />
             {name}
           </button>
         ))}

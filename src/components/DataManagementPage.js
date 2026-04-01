@@ -62,7 +62,7 @@ const PAGE_STYLES = `
   }
 
   .dm-section-wrapper {
-    border: 1px solid rgba(245,158,11,0.12);
+    border: 1px solid rgba(59,130,246,0.12);
     border-radius: 12px;
     background: var(--wt-bg-panel);
     overflow: hidden;
@@ -70,8 +70,8 @@ const PAGE_STYLES = `
     transition: border-color 0.22s ease, box-shadow 0.22s ease;
   }
   .dm-section-wrapper:hover {
-    border-color: rgba(245,158,11,0.22);
-    box-shadow: 0 0 24px rgba(245,158,11,0.04);
+    border-color: rgba(59,130,246,0.22);
+    box-shadow: 0 0 24px rgba(59,130,246,0.04);
   }
 
   .dm-section-toggle {
@@ -84,8 +84,8 @@ const PAGE_STYLES = `
     user-select: none;
     border-bottom: 1px solid transparent;
   }
-  .dm-section-toggle:hover { background: rgba(245,158,11,0.03); }
-  .dm-section-toggle.open { border-bottom-color: rgba(245,158,11,0.08); }
+  .dm-section-toggle:hover { background: rgba(59,130,246,0.03); }
+  .dm-section-toggle.open { border-bottom-color: rgba(59,130,246,0.08); }
 
   .dm-stat-pill {
     display: inline-flex;
@@ -104,14 +104,14 @@ const PAGE_STYLES = `
     gap: 4px;
     padding: 14px 20px;
     background: rgba(0,0,0,0.25);
-    border: 1px solid rgba(245,158,11,0.08);
+    border: 1px solid rgba(59,130,246,0.08);
     border-radius: 10px;
     min-width: 90px;
     transition: all 0.2s ease;
   }
   .dm-quick-stat:hover {
-    border-color: rgba(245,158,11,0.2);
-    background: rgba(245,158,11,0.04);
+    border-color: rgba(59,130,246,0.2);
+    background: rgba(59,130,246,0.04);
   }
 
   /* Export option checkbox */
@@ -127,12 +127,12 @@ const PAGE_STYLES = `
     transition: all 0.18s ease;
   }
   .dm-export-option:hover {
-    border-color: rgba(245,158,11,0.25);
-    background: rgba(245,158,11,0.04);
+    border-color: rgba(59,130,246,0.25);
+    background: rgba(59,130,246,0.04);
   }
   .dm-export-option.checked {
-    border-color: rgba(245,158,11,0.35);
-    background: rgba(245,158,11,0.07);
+    border-color: rgba(59,130,246,0.35);
+    background: rgba(59,130,246,0.07);
   }
 
   /* Format card */
@@ -144,16 +144,16 @@ const PAGE_STYLES = `
     cursor: pointer;
     transition: all 0.22s cubic-bezier(0.4,0,0.2,1);
   }
-  .dm-format-card:hover { border-color: rgba(245,158,11,0.2); }
+  .dm-format-card:hover { border-color: rgba(59,130,246,0.2); }
   .dm-format-card.selected {
-    border-color: #f59e0b;
-    background: rgba(245,158,11,0.06);
-    box-shadow: 0 0 16px rgba(245,158,11,0.1);
+    border-color: #3b82f6;
+    background: rgba(59,130,246,0.06);
+    box-shadow: 0 0 16px rgba(59,130,246,0.1);
   }
 
   /* Drop zone */
   .dm-drop-zone {
-    border: 2px dashed rgba(245,158,11,0.25);
+    border: 2px dashed rgba(59,130,246,0.25);
     border-radius: 10px;
     padding: 36px 24px;
     text-align: center;
@@ -162,9 +162,9 @@ const PAGE_STYLES = `
     background: rgba(0,0,0,0.1);
   }
   .dm-drop-zone:hover, .dm-drop-zone.drag-over {
-    border-color: rgba(245,158,11,0.6);
-    background: rgba(245,158,11,0.05);
-    box-shadow: 0 0 20px rgba(245,158,11,0.08);
+    border-color: rgba(59,130,246,0.6);
+    background: rgba(59,130,246,0.05);
+    box-shadow: 0 0 20px rgba(59,130,246,0.08);
   }
 
   /* Storage bar */
@@ -822,7 +822,7 @@ const DataManagementPage = ({
         }}
       >
         {/* Background hex dots */}
-        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(245,158,11,0.04) 1px, transparent 0)', backgroundSize: '24px 24px', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(59,130,246,0.04) 1px, transparent 0)', backgroundSize: '24px 24px', pointerEvents: 'none' }} />
 
         <div style={{ position: 'relative', maxWidth: '100%' }}>
           {/* Title row */}
@@ -830,25 +830,25 @@ const DataManagementPage = ({
             <div style={{ position: 'relative' }}>
               <div style={{
                 width: 48, height: 48, borderRadius: 10,
-                background: 'linear-gradient(135deg, rgba(245,158,11,0.2), rgba(245,158,11,0.05))',
-                border: '1px solid rgba(245,158,11,0.35)',
+                background: 'linear-gradient(135deg, rgba(59,130,246,0.2), rgba(59,130,246,0.05))',
+                border: '1px solid rgba(59,130,246,0.35)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 0 20px rgba(245,158,11,0.15)',
+                boxShadow: '0 0 20px rgba(59,130,246,0.15)',
               }}>
-                <Settings size={24} style={{ color: '#f59e0b', filter: 'drop-shadow(0 0 8px rgba(245,158,11,0.5))' }} />
+                <Settings size={24} style={{ color: '#60a5fa', filter: 'drop-shadow(0 0 8px rgba(59,130,246,0.5))' }} />
               </div>
               {/* Pulsing ring */}
-              <div style={{ position: 'absolute', inset: -4, border: '1px solid rgba(245,158,11,0.15)', borderRadius: 14, animation: 'wt-pulse-amber 2.5s ease-in-out infinite' }} />
+              <div style={{ position: 'absolute', inset: -4, border: '1px solid rgba(59,130,246,0.15)', borderRadius: 14, animation: 'wt-pulse-blue 2.5s ease-in-out infinite' }} />
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <h1
-                  className="wt-display wt-glow-amber"
-                  style={{ margin: 0, fontSize: 28, color: '#f59e0b', letterSpacing: '0.06em', lineHeight: 1 }}
+                  className="wt-display"
+                  style={{ margin: 0, fontSize: 28, color: '#60a5fa', letterSpacing: '0.06em', lineHeight: 1 }}
                 >
                   DATA MANAGEMENT
                 </h1>
-                <span style={{ fontSize: 10, color: '#475569', fontFamily: "'Share Tech Mono'", letterSpacing: '0.12em', background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.15)', borderRadius: 4, padding: '2px 8px', textTransform: 'uppercase' }}>
+                <span style={{ fontSize: 10, color: '#475569', fontFamily: "'Share Tech Mono'", letterSpacing: '0.12em', background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)', borderRadius: 4, padding: '2px 8px', textTransform: 'uppercase' }}>
                   v3.0
                 </span>
               </div>
@@ -861,7 +861,7 @@ const DataManagementPage = ({
           {/* Quick stats row */}
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             {[
-              { label: 'Pilots',    value: users.length,    icon: Users,    color: '#f59e0b' },
+              { label: 'Pilots',    value: users.length,    icon: Users,    color: '#60a5fa' },
               { label: 'Battles',   value: totalBattles,    icon: Sword,    color: '#3b82f6' },
               { label: 'Victories', value: totalVictories,  icon: Check,    color: '#22c55e' },
               { label: 'Defeats',   value: totalBattles - totalVictories, icon: Target, color: '#ef4444' },
@@ -907,7 +907,7 @@ const DataManagementPage = ({
           id="profiles"
           title="Pilot Profiles"
           icon={Users}
-          color="#f59e0b"
+          color="#60a5fa"
           badge={users.length}
           sub="Manage pilot identities and profile metadata"
           defaultOpen={true}

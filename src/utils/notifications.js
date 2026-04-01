@@ -217,4 +217,5 @@ function _dismissById(id, immediate = false) {
   }, 300);
 }
 
-export default { notify, showMessage, clearNotifications };
+const notifications = { notify, showMessage, clearNotifications };
+export default notifications;

@@ -167,7 +167,7 @@ export function debugAssets() {
   console.groupEnd();
 }
 
-export default {
+const assetManager = {  
   getCountryFlag,
   getVehicleIcon,
   getItemTypeIcon,
@@ -177,3 +177,4 @@ export default {
   preloadCommonAssets,
   debugAssets,
 };
+export default assetManager;

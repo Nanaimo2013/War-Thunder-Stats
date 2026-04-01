@@ -1,21 +1,33 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import './App.css';
 
 // Import utilities
 import { useSessionStorage, showMessage } from './utils/helpers';
 import { calculateStats } from './utils/statsCalculator';
 import { preloadCommonAssets } from './utils/assetManager';
+import { StyleInjector } from './styles/wtTheme';
 
-// Import components
+// Layout (always loaded)
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
-import HomePage from './components/HomePage';
-import StatsPage from './components/StatsPage';
-import LeaderboardPage from './components/LeaderboardPage';
-import PlayerComparisonPage from './components/PlayerComparisonPage';
-import DataManagementPage from './components/DataManagementPage';
-import AboutPage from './components/AboutPage';
-import BattleLogsPage from './components/BattleLogsPage';
+
+// Lazy-loaded pages
+const HomePage           = lazy(() => import('./components/HomePage'));
+const StatsPage          = lazy(() => import('./components/StatsPage'));
+const LeaderboardPage    = lazy(() => import('./components/LeaderboardPage'));
+const PlayerComparisonPage = lazy(() => import('./components/PlayerComparisonPage'));
+const DataManagementPage = lazy(() => import('./components/DataManagementPage'));
+const AboutPage          = lazy(() => import('./components/AboutPage'));
+const BattleLogsPage     = lazy(() => import('./components/BattleLogsPage'));
+
+function PageFallback() {
+    return (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: 16 }}>
+            <div style={{ width: 36, height: 36, border: '3px solid rgba(59,130,246,0.18)', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'wt-spin 0.65s linear infinite' }} />
+            <span style={{ color: '#475569', fontSize: 13, fontFamily: 'Inter, sans-serif' }}>Loading…</span>
+        </div>
+    );
+}
 
 // Main App Component
 const App = () => {
@@ -108,7 +120,7 @@ const App = () => {
     const renderPage = () => {
         switch (currentPage) {
             case 'home':
-                return <HomePage users={users} />;
+                return <HomePage users={users} setCurrentPage={setCurrentPage} />;
             case 'data-management':
                 return (
                     <DataManagementPage
@@ -116,9 +128,9 @@ const App = () => {
                         setUsers={setUsers}
                         selectedUserId={selectedUserId}
                         setSelectedUserId={setSelectedUserId}
-                        battleDataInput={battleDataInput} // This is now just for triggering parsing in child
-                        setBattleDataInput={setBattleDataInput} // This is now just for triggering parsing in child
-                        handleProcessBattleData={addBattlesToUser} // Pass the new function
+                        battleDataInput={battleDataInput}
+                        setBattleDataInput={setBattleDataInput}
+                        handleProcessBattleData={addBattlesToUser}
                         loading={loading}
                     />
                 );
@@ -141,32 +153,24 @@ const App = () => {
             case 'about':
                 return <AboutPage />;
             default:
-                return <HomePage users={users} />;
+                return <HomePage users={users} setCurrentPage={setCurrentPage} />;
         }
     };
 
     return (
-        <div className="min-h-screen flex flex-col items-center bg-gray-950 font-inter text-gray-100">
-            {/* Notification container is created dynamically by the notification system */}
+        <div className="wt-page">
+            <StyleInjector />
 
             {/* Confirmation Modal */}
             {showConfirmModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
-                    <div className="bg-gray-800 p-8 rounded-xl shadow-xl text-center border border-gray-600">
-                        <p className="mb-6 text-xl font-semibold text-yellow-400">{modalMessage}</p>
-                        <div className="flex justify-center space-x-4">
-                            <button
-                                onClick={handleConfirm}
-                                className="px-8 py-3 bg-green-700 text-white rounded-xl hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75 transition duration-300 transform hover:scale-105"
-                            >
-                                Confirm
-                            </button>
-                            <button
-                                onClick={handleCancel}
-                                className="px-8 py-3 bg-red-700 text-white rounded-xl hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75 transition duration-300 transform hover:scale-105"
-                            >
-                                Cancel
-                            </button>
+                <div className="wt-modal-overlay" style={{ zIndex: 2000 }}>
+                    <div className="wt-modal" style={{ maxWidth: 420 }}>
+                        <p style={{ color: '#e2e8f0', fontSize: 15, marginBottom: 24, lineHeight: 1.6, fontFamily: 'Inter, sans-serif' }}>
+                            {modalMessage}
+                        </p>
+                        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                            <button className="wt-btn wt-btn-ghost" onClick={handleCancel}>Cancel</button>
+                            <button className="wt-btn wt-btn-success" onClick={handleConfirm}>Confirm</button>
                         </div>
                     </div>
                 </div>
@@ -174,8 +178,10 @@ const App = () => {
 
             <Navbar setCurrentPage={setCurrentPage} currentPage={currentPage} />
 
-            <main className="flex-grow w-full flex flex-col items-center p-4">
-                {renderPage()}
+            <main style={{ flex: 1, width: '100%' }}>
+                <Suspense fallback={<PageFallback />}>
+                    {renderPage()}
+                </Suspense>
             </main>
 
             <Footer />

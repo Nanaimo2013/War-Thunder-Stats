@@ -397,7 +397,7 @@ export function useRecentChange(dep, delay = 1500) {
   return recent;
 }
 
-export default {
+const helpers = {
   showMessage, clearMessages,
   useStorage, useSessionStorage,
   formatNumber, formatCompact, formatCurrency,
@@ -408,3 +408,4 @@ export default {
   getNestedValue, setNestedValue,
   useOutsideClick, useRecentChange,
 };
+export default helpers;

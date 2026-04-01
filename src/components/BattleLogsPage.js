@@ -16,10 +16,10 @@ import {
   Calendar, Hash, Map, Swords, Plane, Search, X,
   ChevronDown, Filter, Clock, CheckCircle, XCircle,
   AlertTriangle, Target, Shield, Activity, TrendingUp,
-  BarChart2, Users, RefreshCw,
+  BarChart3, Users, RefreshCw,
 } from 'lucide-react';
 import { notify } from '../utils/notifications';
-import { StyleInjector, ResultBadge, SectionHeader, EmptyState, fmt, fmtK } from '../styles/wtTheme';
+import { StyleInjector, ResultBadge, SectionHeader, EmptyState, fmt, fmtK, THEME } from '../styles/wtTheme';
 import { usePagination, WTLoadMoreTrigger, WTLoadMoreButton, LazySection, WTSkeletonList } from '../utils/loading';
 import ItemTypeIcon from './ItemTypeIcon';
 import BattlePreviewOverlay from './BattlePreviewOverlay';
@@ -99,17 +99,17 @@ const BattleCard = React.memo(({ battle, index, onView, onEdit, onDelete }) => {
           <div style={{ flex: '1 1 220px', padding: '14px 16px', borderRight: '1px solid rgba(255,255,255,0.04)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
               <ResultBadge result={battle.result || 'Unknown'} />
-              <span style={{ fontFamily: "'Share Tech Mono'", fontSize: 11, color: '#475569' }}>
+              <span style={{ fontFamily: "'Share Tech Mono'", fontSize: 11, color: 'var(--wt-text-dim)' }}>
                 #{index + 1}
               </span>
             </div>
 
-            <div style={{ fontFamily: "'Rajdhani'", fontWeight: 700, fontSize: 16, color: '#e2e8f0', marginBottom: 3, lineHeight: 1.2 }}>
+            <div style={{ fontFamily: "'Rajdhani'", fontWeight: 700, fontSize: 16, color: 'var(--wt-text-primary)', marginBottom: 3, lineHeight: 1.2 }}>
               {battle.missionName || 'Unknown Mission'}
             </div>
 
             {battle.missionType && (
-              <div style={{ fontSize: 11, color: '#475569', fontFamily: "'Share Tech Mono'", marginBottom: 8 }}>
+              <div style={{ fontSize: 11, color: 'var(--wt-text-dim)', fontFamily: "'Share Tech Mono'", marginBottom: 8 }}>
                 [{battle.missionType}]
               </div>
             )}
@@ -118,18 +118,18 @@ const BattleCard = React.memo(({ battle, index, onView, onEdit, onDelete }) => {
             {bdFmt ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-                  <Calendar size={11} style={{ color: '#f59e0b', flexShrink: 0 }} />
-                  <span style={{ color: '#e2e8f0', fontFamily: "'Exo 2'", fontWeight: 600 }}>
+                  <Calendar size={11} style={{ color: 'var(--wt-blue)', flexShrink: 0 }} />
+                  <span style={{ color: 'var(--wt-text-primary)', fontFamily: "'Exo 2'", fontWeight: 600 }}>
                     {bdFmt.date}
                   </span>
-                  <span style={{ color: '#64748b' }}>{bdFmt.time}</span>
+                  <span style={{ color: 'var(--wt-text-muted)' }}>{bdFmt.time}</span>
                 </div>
-                <div style={{ fontSize: 11, color: '#475569', paddingLeft: 17, fontFamily: "'Share Tech Mono'" }}>
+                <div style={{ fontSize: 11, color: 'var(--wt-text-dim)', paddingLeft: 17, fontFamily: "'Share Tech Mono'" }}>
                   {bdFmt.relative}
                 </div>
               </div>
             ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#475569' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--wt-text-dim)' }}>
                 <Calendar size={11} />
                 <span style={{ fontFamily: "'Exo 2'" }}>Date not set</span>
               </div>
@@ -137,7 +137,7 @@ const BattleCard = React.memo(({ battle, index, onView, onEdit, onDelete }) => {
 
             {/* Upload date (smaller) */}
             {udFmt && (
-              <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#334155' }}>
+              <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--wt-text-dim)' }}>
                 <Clock size={10} />
                 <span style={{ fontFamily: "'Exo 2'" }}>Logged {udFmt.relative}</span>
               </div>
@@ -146,18 +146,18 @@ const BattleCard = React.memo(({ battle, index, onView, onEdit, onDelete }) => {
 
           {/* ── Middle: combat stats ── */}
           <div style={{ flex: '1 1 180px', padding: '14px 16px', borderRight: '1px solid rgba(255,255,255,0.04)' }}>
-            <div style={{ fontFamily: "'Rajdhani'", fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#64748b', marginBottom: 10 }}>
+            <div style={{ fontFamily: "'Rajdhani'", fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--wt-text-muted)', marginBottom: 10 }}>
               Combat
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {[
-                { icon: <Target size={12} style={{ color: '#ef4444' }} />, label: 'Ground', val: battle.killsGround || 0, color: '#ef4444' },
-                { icon: <Plane size={12} style={{ color: '#3b82f6' }} />, label: 'Air',    val: battle.killsAircraft || 0, color: '#3b82f6' },
-                { icon: <Shield size={12} style={{ color: '#22c55e' }} />, label: 'Assists', val: battle.assists || 0, color: '#22c55e' },
+                { icon: <Target size={12} style={{ color: 'var(--wt-red)' }} />, label: 'Ground', val: battle.killsGround || 0, color: 'var(--wt-red)' },
+                { icon: <Plane size={12} style={{ color: 'var(--wt-blue)' }} />, label: 'Air',    val: battle.killsAircraft || 0, color: 'var(--wt-blue)' },
+                { icon: <Shield size={12} style={{ color: 'var(--wt-green)' }} />, label: 'Assists', val: battle.assists || 0, color: 'var(--wt-green)' },
               ].map(({ icon, label, val, color }) => (
                 <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   {icon}
-                  <span style={{ fontSize: 11, color: '#64748b', fontFamily: "'Exo 2'", flex: 1 }}>{label}</span>
+                  <span style={{ fontSize: 11, color: 'var(--wt-text-muted)', fontFamily: "'Exo 2'", flex: 1 }}>{label}</span>
                   <span style={{ fontFamily: "'Share Tech Mono'", fontSize: 14, color, fontWeight: 700 }}>{val}</span>
                 </div>
               ))}
@@ -170,7 +170,7 @@ const BattleCard = React.memo(({ battle, index, onView, onEdit, onDelete }) => {
                       <div style={{ flex: battle.killsGround, background: '#ef4444', borderRadius: 3, transition: 'flex 0.4s ease' }} />
                     )}
                     {battle.killsAircraft > 0 && (
-                      <div style={{ flex: battle.killsAircraft, background: '#3b82f6', borderRadius: 3, transition: 'flex 0.4s ease' }} />
+                      <div style={{ flex: battle.killsAircraft, background: 'var(--wt-blue)', borderRadius: 3, transition: 'flex 0.4s ease' }} />
                     )}
                   </div>
                 </div>
@@ -180,18 +180,18 @@ const BattleCard = React.memo(({ battle, index, onView, onEdit, onDelete }) => {
 
           {/* ── Right: economy ── */}
           <div style={{ flex: '1 1 180px', padding: '14px 16px' }}>
-            <div style={{ fontFamily: "'Rajdhani'", fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#64748b', marginBottom: 10 }}>
+            <div style={{ fontFamily: "'Rajdhani'", fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--wt-text-muted)', marginBottom: 10 }}>
               Economy
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               {[
-                { type: 'warpoints', val: battle.earnedSL || 0, color: '#f59e0b', label: 'SL' },
-                { type: 'rp',        val: battle.totalRP  || 0, color: '#a855f7', label: 'RP' },
-                { type: 'crp',       val: battle.earnedCRP|| 0, color: '#7c3aed', label: 'CRP' },
+                { type: 'warpoints', val: battle.earnedSL || 0, color: 'var(--wt-blue)', label: 'SL' },
+                { type: 'rp',        val: battle.totalRP  || 0, color: 'var(--wt-purple)', label: 'RP' },
+                { type: 'crp',       val: battle.earnedCRP|| 0, color: 'var(--wt-purple)', label: 'CRP' },
               ].filter(r => r.val > 0 || r.label === 'SL').map(({ type, val, color, label }) => (
                 <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <ItemTypeIcon type={type} size="xs" />
-                  <span style={{ fontSize: 11, color: '#64748b', fontFamily: "'Exo 2'", flex: 1 }}>{label}</span>
+                  <span style={{ fontSize: 11, color: 'var(--wt-text-muted)', fontFamily: "'Exo 2'", flex: 1 }}>{label}</span>
                   <span style={{ fontFamily: "'Share Tech Mono'", fontSize: 13, color, fontWeight: 700 }}>
                     {fmtK(val)}
                   </span>
@@ -200,9 +200,9 @@ const BattleCard = React.memo(({ battle, index, onView, onEdit, onDelete }) => {
 
               {(battle.activity > 0) && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
-                  <Activity size={12} style={{ color: '#22c55e' }} />
-                  <span style={{ fontSize: 11, color: '#64748b', fontFamily: "'Exo 2'", flex: 1 }}>Activity</span>
-                  <span style={{ fontFamily: "'Share Tech Mono'", fontSize: 13, color: '#22c55e', fontWeight: 700 }}>
+                  <Activity size={12} style={{ color: 'var(--wt-green)' }} />
+                  <span style={{ fontSize: 11, color: 'var(--wt-text-muted)', fontFamily: "'Exo 2'", flex: 1 }}>Activity</span>
+                  <span style={{ fontFamily: "'Share Tech Mono'", fontSize: 13, color: 'var(--wt-green)', fontWeight: 700 }}>
                     {battle.activity}%
                   </span>
                 </div>
@@ -239,10 +239,19 @@ const BattleCard = React.memo(({ battle, index, onView, onEdit, onDelete }) => {
 
 const FiltersPanel = React.memo(({ filters, onChange, missionTypes, onReset }) => {
   return (
-    <div className="wt-filter-bar">
+    <div className="wt-filter-bar" style={{
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: 12,
+      padding: '16px 20px',
+      background: 'var(--wt-bg-panel)',
+      border: '1px solid var(--wt-border)',
+      borderRadius: 'var(--wt-radius-lg)',
+      backdropFilter: 'blur(8px)',
+    }}>
       {/* Search */}
       <div style={{ position: 'relative', flex: '1 1 200px' }}>
-        <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#475569' }} />
+        <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--wt-text-muted)' }} />
         <input
           className="wt-input"
           value={filters.search}
@@ -252,7 +261,8 @@ const FiltersPanel = React.memo(({ filters, onChange, missionTypes, onReset }) =
         />
         {filters.search && (
           <button
-            style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#475569', padding: 2 }}
+            className="wt-btn-icon"
+            style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)' }}
             onClick={() => onChange('search', '')}
           >
             <X size={12} />
@@ -267,6 +277,20 @@ const FiltersPanel = React.memo(({ filters, onChange, missionTypes, onReset }) =
             key={r}
             className={`wt-filter-pill ${filters.result === r ? (r === 'Victory' ? 'active victory' : r === 'Defeat' ? 'active defeat' : 'active') : ''}`}
             onClick={() => onChange('result', r)}
+            style={{
+              padding: '6px 12px',
+              borderRadius: 'var(--wt-radius)',
+              fontSize: 11,
+              fontFamily: 'var(--wt-font-body)',
+              fontWeight: 500,
+              cursor: 'pointer',
+              border: '1px solid var(--wt-border)',
+              background: filters.result === r 
+                ? r === 'Victory' ? 'var(--wt-green)' : r === 'Defeat' ? 'var(--wt-red)' : 'var(--wt-amber)'
+                : 'transparent',
+              color: filters.result === r ? '#fff' : 'var(--wt-text-muted)',
+              transition: 'all var(--wt-transition)',
+            }}
           >
             {r === 'Victory' ? '✓' : r === 'Defeat' ? '✗' : r === 'Unknown' ? '?' : '▤'} {r}
           </button>
@@ -296,7 +320,7 @@ const FiltersPanel = React.memo(({ filters, onChange, missionTypes, onReset }) =
           style={{ width: 140, paddingTop: 7, paddingBottom: 7 }}
           title="Battle date from"
         />
-        <span style={{ color: '#475569', fontSize: 11 }}>→</span>
+        <span style={{ color: 'var(--wt-text-muted)', fontSize: 11 }}>→</span>
         <input
           type="date"
           className="wt-input"
@@ -327,10 +351,10 @@ const SortBar = React.memo(({ sortColumn, sortDir, onSort }) => {
     { id: 'activity',   label: 'Activity',    icon: Activity },
     { id: 'parsedAt',   label: 'Upload Date', icon: Clock },
   ];
-
+ 
   return (
     <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
-      <span style={{ fontSize: 11, color: '#475569', fontFamily: "'Rajdhani'", fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginRight: 4 }}>
+      <span style={{ fontSize: 11, color: 'var(--wt-text-muted)', fontFamily: 'var(--wt-font-display)', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginRight: 4 }}>
         Sort:
       </span>
       {options.map(({ id, label, icon: Icon }) => {
@@ -339,16 +363,17 @@ const SortBar = React.memo(({ sortColumn, sortDir, onSort }) => {
           <button
             key={id}
             onClick={() => onSort(id)}
+            className={`wt-sort-btn ${active ? 'active' : ''}`}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 4,
-              padding: '4px 10px', borderRadius: 4,
-              fontFamily: "'Rajdhani'", fontWeight: 600, fontSize: 11,
+              padding: '4px 10px', borderRadius: 'var(--wt-radius)',
+              fontFamily: 'var(--wt-font-display)', fontWeight: 600, fontSize: 11,
               letterSpacing: '0.05em', textTransform: 'uppercase',
               cursor: 'pointer',
-              background: active ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.03)',
-              border: `1px solid ${active ? 'rgba(245,158,11,0.4)' : 'rgba(255,255,255,0.07)'}`,
-              color: active ? '#f59e0b' : '#64748b',
-              transition: 'all 0.18s ease',
+              background: active ? 'var(--wt-blue-glow)' : 'rgba(255,255,255,0.03)',
+              border: `1px solid ${active ? 'var(--wt-blue)' : 'var(--wt-border)'}`,
+              color: active ? 'var(--wt-blue-bright)' : 'var(--wt-text-muted)',
+              transition: 'all var(--wt-transition)',
             }}
           >
             {Icon && <Icon size={10} />}
@@ -367,8 +392,8 @@ const DeleteConfirm = ({ onConfirm, onCancel }) => (
   <div className="wt-modal-overlay">
     <div className="wt-modal" style={{ maxWidth: 420, textAlign: 'center' }}>
       <div style={{ fontSize: 40, marginBottom: 12 }}>🗑️</div>
-      <h3 className="wt-display" style={{ fontSize: 20, color: '#e2e8f0', marginBottom: 8 }}>Delete Battle Log?</h3>
-      <p style={{ fontSize: 13, color: '#64748b', fontFamily: "'Exo 2'", marginBottom: 24, lineHeight: 1.5 }}>
+      <h3 className="wt-display" style={{ fontSize: 20, color: 'var(--wt-text-primary)', marginBottom: 8 }}>Delete Battle Log?</h3>
+      <p style={{ fontSize: 13, color: 'var(--wt-text-muted)', fontFamily: "'Exo 2'", marginBottom: 24, lineHeight: 1.5 }}>
         This action cannot be undone. The battle log will be permanently removed.
       </p>
       <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
@@ -390,24 +415,25 @@ const StatsBar = React.memo(({ battles }) => {
   const totalKills = battles.reduce((s, b) => s + (b.killsGround || 0) + (b.killsAircraft || 0), 0);
 
   return (
-    <div style={{
+    <div className="wt-stats-bar" style={{
       display: 'flex', flexWrap: 'wrap', gap: 12,
       padding: '12px 18px',
-      background: 'rgba(245,158,11,0.03)',
-      border: '1px solid rgba(245,158,11,0.08)',
-      borderRadius: 8,
+      background: 'var(--wt-bg-panel)',
+      border: '1px solid var(--wt-border)',
+      borderRadius: 'var(--wt-radius-lg)',
       marginBottom: 16,
+      backdropFilter: 'blur(8px)',
     }}>
       {[
-        { label: 'Showing', val: battles.length, color: '#f59e0b' },
-        { label: 'Win Rate', val: `${wr}%`, color: wins > losses ? '#22c55e' : '#ef4444' },
-        { label: 'Total Kills', val: fmtK(totalKills), color: '#ef4444' },
-        { label: 'Total SL', val: fmtK(totalSL), color: '#f59e0b' },
-        { label: 'Total RP', val: fmtK(totalRP), color: '#a855f7' },
+        { label: 'Showing', val: battles.length, color: 'var(--wt-blue)' },
+        { label: 'Win Rate', val: `${wr}%`, color: wins > losses ? 'var(--wt-green)' : 'var(--wt-red)' },
+        { label: 'Total Kills', val: fmtK(totalKills), color: 'var(--wt-red)' },
+        { label: 'Total SL', val: fmtK(totalSL), color: 'var(--wt-amber)' },
+        { label: 'Total RP', val: fmtK(totalRP), color: 'var(--wt-purple)' },
       ].map(({ label, val, color }) => (
         <div key={label} style={{ display: 'flex', flex: '0 1 auto', alignItems: 'baseline', gap: 6 }}>
-          <span style={{ fontSize: 11, color: '#475569', fontFamily: "'Rajdhani'", fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</span>
-          <span style={{ fontFamily: "'Share Tech Mono'", fontSize: 15, color, fontWeight: 700 }}>{val}</span>
+          <span style={{ fontSize: 11, color: 'var(--wt-text-muted)', fontFamily: 'var(--wt-font-display)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</span>
+          <span style={{ fontFamily: 'var(--wt-font-mono)', fontSize: 15, color, fontWeight: 700 }}>{val}</span>
         </div>
       ))}
     </div>
@@ -595,30 +621,34 @@ const BattleLogsPage = ({ users, setUsers, selectedUserId, setSelectedUserId }) 
       <StyleInjector />
 
       {/* Page header */}
-      <div className="wt-page-header">
+      <div className="wt-page-header" style={{
+        padding: '32px 24px 20px',
+        background: 'linear-gradient(180deg, var(--wt-bg-deep) 0%, var(--wt-bg-void) 100%)',
+        borderBottom: '1px solid var(--wt-border)',
+      }}>
         <div style={{ maxWidth: 1400, margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
             <div style={{ position: 'relative' }}>
-              <FileText size={28} style={{ color: '#f59e0b', filter: 'drop-shadow(0 0 10px rgba(245,158,11,0.5))' }} />
+              <FileText size={28} style={{ color: 'var(--wt-blue)', filter: 'drop-shadow(0 0 10px var(--wt-blue-glow))' }} />
             </div>
             <div>
-              <h1 className="wt-display wt-glow-amber" style={{ margin: 0, fontSize: 26, color: '#f59e0b', letterSpacing: '0.04em' }}>
+              <h1 className="wt-display" style={{ margin: 0, fontSize: 26, color: 'var(--wt-blue)', letterSpacing: '0.04em' }}>
                 BATTLE LOGS
               </h1>
-              <p style={{ margin: 0, fontSize: 11, color: '#475569', fontFamily: "'Share Tech Mono'", letterSpacing: '0.08em' }}>
+              <p style={{ margin: 0, fontSize: 11, color: 'var(--wt-text-muted)', fontFamily: 'var(--wt-font-mono)', letterSpacing: '0.08em' }}>
                 COMBAT HISTORY ARCHIVE
               </p>
             </div>
             {battles.length > 0 && (
-              <div style={{ marginLeft: 'auto', fontFamily: "'Share Tech Mono'", fontSize: 13, color: '#475569' }}>
-                {battles.length} <span style={{ color: '#f59e0b' }}>total</span>
+              <div style={{ marginLeft: 'auto', fontFamily: 'var(--wt-font-mono)', fontSize: 13, color: 'var(--wt-text-muted)' }}>
+                {battles.length} <span style={{ color: 'var(--wt-amber)' }}>total</span>
               </div>
             )}
           </div>
-
+          
           {/* Pilot selector */}
           <div style={{ maxWidth: 380 }}>
-            <label style={{ display: 'block', fontFamily: "'Rajdhani'", fontSize: 11, fontWeight: 600, color: '#f59e0b', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>
+            <label style={{ display: 'block', fontFamily: 'var(--wt-font-display)', fontSize: 11, fontWeight: 600, color: 'var(--wt-blue)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>
               ▸ SELECT PILOT
             </label>
             <select
@@ -637,19 +667,31 @@ const BattleLogsPage = ({ users, setUsers, selectedUserId, setSelectedUserId }) 
       <div style={{ maxWidth: 1400, margin: '0 auto', padding: '24px 24px' }}>
         {/* No user selected */}
         {!selectedUserId && (
-          <div style={{ textAlign: 'center', padding: '80px 24px', border: '1px dashed rgba(245,158,11,0.2)', borderRadius: 12 }}>
-            <Users size={48} style={{ marginBottom: 16, opacity: 0.3, color: '#f59e0b' }} />
-            <p className="wt-display" style={{ fontSize: 20, color: '#475569', margin: '0 0 8px' }}>NO PILOT SELECTED</p>
-            <p style={{ fontSize: 13, color: '#334155', fontFamily: "'Exo 2'" }}>Choose a pilot above to view their battle history.</p>
+          <div className="wt-empty-state" style={{
+            textAlign: 'center', 
+            padding: '80px 24px', 
+            border: '1px dashed var(--wt-border)', 
+            borderRadius: 'var(--wt-radius-lg)',
+            background: 'var(--wt-bg-panel)',
+          }}>
+            <Users size={48} style={{ marginBottom: 16, opacity: 0.3, color: 'var(--wt-blue)' }} />
+            <p className="wt-display" style={{ fontSize: 20, color: 'var(--wt-text-muted)', margin: '0 0 8px' }}>NO PILOT SELECTED</p>
+            <p style={{ fontSize: 13, color: 'var(--wt-text-dim)', fontFamily: 'var(--wt-font-body)' }}>Choose a pilot above to view their battle history.</p>
           </div>
         )}
-
+        
         {/* User selected, no battles */}
         {selectedUserId && battles.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '80px 24px', border: '1px dashed rgba(245,158,11,0.15)', borderRadius: 12 }}>
-            <FileText size={48} style={{ marginBottom: 16, opacity: 0.3, color: '#f59e0b' }} />
-            <p className="wt-display" style={{ fontSize: 20, color: '#f59e0b', margin: '0 0 8px' }}>NO BATTLE DATA</p>
-            <p style={{ fontSize: 13, color: '#334155', fontFamily: "'Exo 2'" }}>
+          <div className="wt-empty-state" style={{
+            textAlign: 'center', 
+            padding: '80px 24px', 
+            border: '1px dashed var(--wt-border)', 
+            borderRadius: 'var(--wt-radius-lg)',
+            background: 'var(--wt-bg-panel)',
+          }}>
+            <FileText size={48} style={{ marginBottom: 16, opacity: 0.3, color: 'var(--wt-amber)' }} />
+            <p className="wt-display" style={{ fontSize: 20, color: 'var(--wt-amber)', margin: '0 0 8px' }}>NO BATTLE DATA</p>
+            <p style={{ fontSize: 13, color: 'var(--wt-text-dim)', fontFamily: 'var(--wt-font-body)' }}>
               {currentUser?.name} has no battle logs. Go to Data Management to add some.
             </p>
           </div>
@@ -674,7 +716,7 @@ const BattleLogsPage = ({ users, setUsers, selectedUserId, setSelectedUserId }) 
 
             {/* Results count */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <span style={{ fontFamily: "'Share Tech Mono'", fontSize: 12, color: '#475569' }}>
+              <span style={{ fontFamily: 'var(--wt-font-mono)', fontSize: 12, color: 'var(--wt-text-muted)' }}>
                 {filtered.length === battles.length
                   ? `${battles.length} battles`
                   : `${filtered.length} of ${battles.length} battles`}
@@ -682,14 +724,14 @@ const BattleLogsPage = ({ users, setUsers, selectedUserId, setSelectedUserId }) 
               {activeFilterCount > 0 && (
                 <span style={{
                   padding: '2px 8px', borderRadius: 10, fontSize: 11,
-                  background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)',
-                  color: '#f59e0b', fontFamily: "'Share Tech Mono'",
+                  background: 'var(--wt-blue-glow)', border: '1px solid var(--wt-blue)',
+                  color: 'var(--wt-blue)', fontFamily: 'var(--wt-font-mono)',
                 }}>
                   {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''}
                 </span>
               )}
               {filtered.length === 0 && battles.length > 0 && (
-                <span style={{ color: '#ef4444', fontSize: 12, fontFamily: "'Exo 2'" }}>
+                <span style={{ color: 'var(--wt-red)', fontSize: 12, fontFamily: 'var(--wt-font-body)' }}>
                   No results — try adjusting filters
                 </span>
               )}
